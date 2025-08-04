@@ -1,3 +1,13 @@
+# macOS
+.DS_Store
+
+# BNetzA Downloads
+register-downloads/
+
+# NiceGUI
+.nicegui/
+.secret
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -7,6 +17,8 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+uv.lock
+
 .Python
 build/
 develop-eggs/
@@ -205,3 +217,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# uv lock file
+uv.lock

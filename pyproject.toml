@@ -1,0 +1,23 @@
+[project]
+name = "bnetza-ladesaeulenregister-nicegui"
+version = "0.1.0"
+description = "Eine interaktive Kartenvisualisierung des öffentlichen Ladesäulenregisters der BNetzA, erstellt mit NiceGUI."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+    { name = "Patrick Zauner", email = "vibecoding@<ersterbuchstabevornamesonstnachnamepunktde>" },
+]
+keywords = ["nicegui", "leaflet", "bnetza", "ladesaeulenregister"]
+
+dependencies = [
+    "nicegui",
+    "pandas",
+    "requests",
+    "beautifulsoup4",
+    "lxml",
+]
+
+[project.urls]
+Homepage = "https://github.com/ihr-benutzer/BNetzA-oeffentliches-Ladesaeulenregister-NiceGUI"
+"Bug Tracker" = "https://github.com/ihr-benutzer/BNetzA-oeffentliches-Ladesaeulenregister-NiceGUI/issues"
