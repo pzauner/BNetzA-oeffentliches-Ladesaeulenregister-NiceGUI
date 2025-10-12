@@ -55,6 +55,14 @@ Wenn der Benutzer die Karte verschiebt (`dragend`) oder zoomt (`zoomend`), werde
 
 Die Filter für Betreiber und Ladeleistung werden ebenfalls dynamisch auf Basis der im sichtbaren Bereich verfügbaren Daten aktualisiert.
 
+## Designentscheidungen: Upload-Verhalten (Mobile)
+
+Auf der Stationsseite verwenden wir einen direkten Upload-Handler, der die vom NiceGUI-Upload-Event bereitgestellten Bytes (`e.content.read()`) unmittelbar in die jeweilige Stationsablage (`station-context/<ID>/`) schreibt. Dieser Ansatz vermeidet zusätzliche Bestätigungsschritte und funktioniert auf mobilen Browsern zuverlässiger und konsistenter, wo Mehrfach-Dialoge und automatische Uploads mitunter restriktiv behandelt werden.
+
+Hinweis:
+- Der Upload löst nach erfolgreichem Speichern eine UI-Aktualisierung der Dateiliste aus.
+- Lösch- und Umbenenn-Aktionen sind weiterhin ausdrücklich dialogbestätigt, um versehentliches Ändern zu vermeiden.
+
 ## Lizenz
 
 Dieses Projekt steht unter der [MIT-Lizenz](LICENSE).

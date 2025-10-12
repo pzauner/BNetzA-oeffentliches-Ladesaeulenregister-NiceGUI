@@ -1,21 +1,19 @@
-from dataclasses import dataclass, field
 from nicegui import ui, app, run
 from starlette.requests import Request
 from starlette.responses import FileResponse, Response, RedirectResponse
-from starlette.middleware.base import BaseHTTPMiddleware
 import pandas as pd
 import sys
 import os
 import html
 from typing import Dict, List, Any, Optional, Tuple
-import requests
-from bs4 import BeautifulSoup
-import glob
 import logging
-import threading
-import re
 import json
-import json
+from app.config import DOWNLOAD_DIR, CONTEXT_DIR, BNETZA_PAGE_URL, MAX_MARKERS_IN_VIEW, KARLSRUHE_COORDS, STATION_PAGE_ROUTE
+from app.data import DownloadState, find_csv_download_url, download_csv, get_available_csvs, load_data, get_latest_csv
+from app.storage import sanitize_id, get_station_dir, ensure_station_dir, load_notes_html, save_notes_html, list_station_files, load_meta, save_meta
+import asyncio
+from app.index import load_station_index, save_station_index
+from app.auth import login, AuthMiddleware, load_storage_secret
 
 # --- Setup Logging ---
 logging.basicConfig(
@@ -24,178 +22,14 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 
-# --- Constants ---
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DOWNLOAD_DIR = os.path.join(SCRIPT_DIR, 'register-downloads')
-CONTEXT_DIR = os.path.join(SCRIPT_DIR, 'station-context')
-BNETZA_PAGE_URL = 'https://www.bundesnetzagentur.de/DE/Fachthemen/ElektrizitaetundGas/E-Mobilitaet/start.html'
-MAX_MARKERS_IN_VIEW = 2500
-KARLSRUHE_COORDS = (49.0069, 8.4037)
-STATION_PAGE_ROUTE = '/station/{station_id}'
-INDEX_DIR = os.path.join(CONTEXT_DIR, 'index')
-STATION_INDEX_PATH = os.path.join(INDEX_DIR, 'station-index.json')
+# constants moved to app.config
 
 # --- Data Management & State ---
-@dataclass
-class DownloadState:
-    is_running: bool = False
-    progress: float = 0.0
-    total_mb: float = 0.0
-    downloaded_mb: float = 0.0
-    lock: threading.Lock = field(default_factory=threading.Lock)
-
-    def update(self, downloaded: int, total: int):
-        with self.lock:
-            self.progress = downloaded / total if total > 0 else 0
-            self.downloaded_mb = downloaded / 1024 / 1024
-            self.total_mb = total / 1024 / 1024
-    
-    def start(self):
-        with self.lock:
-            self.is_running = True
-            self.progress = 0.0
-            self.total_mb = 0.0
-            self.downloaded_mb = 0.0
-
-    def finish(self):
-        with self.lock:
-            self.is_running = False
 
 download_state = DownloadState()
-
-# --- Secrets & Auth helpers ---
-def parse_secret_file(filepath: str = ".secret") -> Dict[str, str]:
-    if not os.path.exists(filepath):
-        return {}
-    try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            content = f.read().strip()
-        if not content:
-            return {}
-        if '=' not in content and '\n' not in content:
-            # legacy format: raw storage secret only
-            return { 'STORAGE_SECRET': content }
-        values: Dict[str, str] = {}
-        for line in content.splitlines():
-            if not line.strip() or line.strip().startswith('#'):
-                continue
-            if '=' in line:
-                k, v = line.split('=', 1)
-                values[k.strip()] = v.strip()
-        return values
-    except Exception:
-        return {}
-
-def load_credentials(filepath: str = ".secret") -> Tuple[str, str]:
-    d = parse_secret_file(filepath)
-    username = d.get('AUTH_USERNAME', 'admin')
-    password = d.get('AUTH_PASSWORD', 'pass1')
-    return username, password
-
-@ui.page('/login')
-def login(redirect_to: str = '/'):
-    expected_user, expected_pass = load_credentials()
-
-    def try_login():
-        if username.value == expected_user and password.value == expected_pass:
-            app.storage.user.update({'username': username.value, 'authenticated': True})
-            ui.navigate.to(redirect_to)
-        else:
-            ui.notify('Falscher Benutzer oder Passwort', color='negative')
-
-    if app.storage.user.get('authenticated', False):
-        ui.navigate.to('/')
-        return
-    with ui.card().classes('absolute-center'):
-        username = ui.input('Username').on('keydown.enter', try_login)
-        password = ui.input('Password', password=True, password_toggle_button=True).on('keydown.enter', try_login)
-        ui.button('Log in', on_click=try_login)
-
-
-class AuthMiddleware(BaseHTTPMiddleware):
-    """Middleware, die Bearbeitungs-Endpunkte für nicht angemeldete Nutzer sperrt."""
-    unrestricted = {'/login', '/'}
-
-    async def dispatch(self, request: Request, call_next):
-        path = request.url.path
-        # Allow NiceGUI internal assets and public pages
-        if path.startswith('/_nicegui'):
-            return await call_next(request)
-        if path in self.unrestricted or path.startswith('/station/') or path.startswith('/station-files/'):
-            return await call_next(request)
-        # For any future API endpoints under /api/edit/ require auth
-        if path.startswith('/api/edit/') and not app.storage.user.get('authenticated', False):
-            return RedirectResponse(f"/login?redirect_to={path}")
-        return await call_next(request)
-
 app.add_middleware(AuthMiddleware)
 
-def find_csv_download_url(page_url: str) -> Optional[str]:
-    """Finds the CSV download URL from the BNetzA page."""
-    try:
-        logging.info(f"Fetching page to find download link: {page_url}")
-        response = requests.get(page_url)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, 'lxml')
-        link_element = soup.find('a', class_='downloadLink Publication FTcsv', href=lambda href: href and 'Ladesaeulenregister' in href and href.endswith('.csv'))
-        if link_element and link_element['href']:
-            url = link_element['href']
-            logging.info(f"Found download link: {url}")
-            return url
-    except requests.RequestException as e:
-        logging.error(f"Error fetching page {page_url}: {e}")
-    except Exception as e:
-        logging.error(f"An error occurred during parsing: {e}")
-    return None
-
-def download_csv(url: str, dest_folder: str, state: DownloadState) -> bool:
-    """Downloads a CSV file, updating a shared state object."""
-    os.makedirs(dest_folder, exist_ok=True)
-    filename = os.path.join(dest_folder, url.split('/')[-1])
-    logging.info(f"Starting download of {url} to {filename}")
-    state.start()
-    try:
-        with requests.get(url, stream=True) as r:
-            r.raise_for_status()
-            total_size = int(r.headers.get('content-length', 0))
-            downloaded_size = 0
-            with open(filename, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
-                    downloaded_size += len(chunk)
-                    state.update(downloaded_size, total_size)
-        logging.info(f"Successfully downloaded {filename}")
-        return True
-    except Exception as e:
-        logging.error(f"Failed to download {url}: {e}")
-        return False
-    finally:
-        state.finish()
-        
-def get_available_csvs() -> List[str]:
-    """Returns a list of available CSV filenames in the download directory."""
-    if not os.path.isdir(DOWNLOAD_DIR):
-        return []
-    return sorted([os.path.basename(f) for f in glob.glob(os.path.join(DOWNLOAD_DIR, '*.csv'))], reverse=True)
-
-def get_latest_csv() -> Optional[str]:
-    csvs = get_available_csvs()
-    return csvs[0] if csvs else None
-
-def load_station_index() -> Dict[str, Any]:
-    os.makedirs(INDEX_DIR, exist_ok=True)
-    if os.path.isfile(STATION_INDEX_PATH):
-        try:
-            with open(STATION_INDEX_PATH, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            return {}
-    return {}
-
-def save_station_index(index: Dict[str, Any]) -> None:
-    os.makedirs(INDEX_DIR, exist_ok=True)
-    with open(STATION_INDEX_PATH, 'w', encoding='utf-8') as f:
-        json.dump(index, f, ensure_ascii=False, indent=2)
+# data and index helpers are imported from app.data / app.index
 
 def load_data(csv_filename: str) -> Tuple[Optional[pd.DataFrame], Optional[str], Optional[Dict[str, int]]]:
     """Loads a CSV file into a pandas DataFrame, skipping the header."""
@@ -254,44 +88,7 @@ def load_data(csv_filename: str) -> Tuple[Optional[pd.DataFrame], Optional[str],
 
 # --- UI Application ---
 
-def sanitize_id(station_id: str) -> str:
-    """Sanitize ID for safe filesystem usage while remaining recognizable."""
-    return re.sub(r'[^A-Za-z0-9._\-]', '_', str(station_id))
-
-def get_station_dir(station_id: str) -> str:
-    safe_id = sanitize_id(station_id)
-    return os.path.join(CONTEXT_DIR, safe_id)
-
-def ensure_station_dir(station_id: str) -> str:
-    path = get_station_dir(station_id)
-    os.makedirs(path, exist_ok=True)
-    return path
-
-def load_notes_html(station_id: str) -> str:
-    """Load saved HTML notes for a station; returns empty string if not present."""
-    notes_path = os.path.join(get_station_dir(station_id), 'notes.html')
-    if os.path.exists(notes_path):
-        try:
-            with open(notes_path, 'r', encoding='utf-8') as f:
-                return f.read()
-        except Exception:
-            return ""
-    return ""
-
-def save_notes_html(station_id: str, html_content: str) -> None:
-    """Persist HTML notes for a station."""
-    station_dir = ensure_station_dir(station_id)
-    notes_path = os.path.join(station_dir, 'notes.html')
-    with open(notes_path, 'w', encoding='utf-8') as f:
-        f.write(html_content or "")
-
-def list_station_files(station_id: str) -> List[str]:
-    """List files stored for the station (excluding notes.html)."""
-    station_dir = get_station_dir(station_id)
-    if not os.path.isdir(station_dir):
-        return []
-    files = [os.path.basename(p) for p in glob.glob(os.path.join(station_dir, '*'))]
-    return sorted([f for f in files if f != 'notes.html'])
+# storage helpers are imported from app.storage
 
 def load_meta(station_id: str) -> Dict[str, Any]:
     path = os.path.join(ensure_station_dir(station_id), 'meta.json')
@@ -429,57 +226,20 @@ async def station_page(request: Request, station_id: str):
         async def refresh_files():
             files = await run.io_bound(list_station_files, station_id)
             files_column.clear()
+            # Upload control appears above the list inside the files column
+            if app.storage.user.get('authenticated'):
+                with files_column:
+                    ui.label('Dateien hochladen').classes('text-md font-semibold')
+                    ui.upload(multiple=True, auto_upload=True, on_upload=on_upload)
             if files:
                 meta = await run.io_bound(load_meta, station_id)
                 titles = meta.get('titles', {}) if isinstance(meta, dict) else {}
                 for fname in files:
                     with files_column:
                         with ui.row().classes('items-center gap-2 w-full'):
-                            title_input = ui.input(value=titles.get(fname, ''), placeholder='Titel')
-                            ui.link(fname, f"/station-files/{sanitize_id(station_id)}/{fname}")
-                            def rename_factory(name=fname, ti=title_input):
-                                async def _rename():
-                                    if not app.storage.user.get('authenticated'):
-                                        ui.notify('Bitte zuerst einloggen.', type='warning')
-                                        return
-                                    new_name = await ui.run_javascript('prompt("Neuer Dateiname (inkl. Erweiterung):", arguments[0])', arguments=[name])
-                                    if not new_name or new_name == 'null':
-                                        return
-                                    new_name = os.path.basename(new_name)
-                                    old_path = os.path.join(ensure_station_dir(station_id), name)
-                                    new_path = os.path.join(ensure_station_dir(station_id), new_name)
-                                    if os.path.exists(new_path):
-                                        ui.notify('Zieldatei existiert bereits.', type='warning')
-                                        return
-                                    try:
-                                        os.rename(old_path, new_path)
-                                    except Exception as e:
-                                        ui.notify(f'Umbenennen fehlgeschlagen: {e}', type='negative')
-                                        return
-                                    m = await run.io_bound(load_meta, station_id)
-                                    if not isinstance(m, dict):
-                                        m = {}
-                                    t = m.get('titles', {}) if isinstance(m.get('titles'), dict) else {}
-                                    if name in t:
-                                        t[new_name] = t.pop(name)
-                                    m['titles'] = t
-                                    await run.io_bound(save_meta, station_id, m)
-                                    ui.notify('Datei umbenannt.', type='positive')
-                                    await refresh_files()
-                                return _rename
-                            ui.button('Umbenennen', on_click=rename_factory()).props('flat')
-                            if fname.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
-                                def preview_factory(name=fname):
-                                    def _open():
-                                        with ui.dialog() as d:
-                                            with ui.card():
-                                                ui.image(f"/station-files/{sanitize_id(station_id)}/{name}").classes('max-w-[80vw] max-h-[80vh]')
-                                                ui.button('Schließen', on_click=d.close)
-                                        d.open()
-                                    return _open
-                                ui.button('Vorschau', on_click=preview_factory())
-                            def save_title_factory(name=fname, ti=title_input):
-                                async def _save():
+                            with ui.row().classes('items-center gap-2'):
+                                title_input = ui.input(value=titles.get(fname, ''), placeholder='Name')
+                                async def save_name(name=fname, ti=title_input):
                                     if not app.storage.user.get('authenticated'):
                                         ui.notify('Bitte zuerst einloggen.', type='warning')
                                         return
@@ -490,9 +250,63 @@ async def station_page(request: Request, station_id: str):
                                     t[name] = ti.value
                                     m['titles'] = t
                                     await run.io_bound(save_meta, station_id, m)
-                                    ui.notify('Titel gespeichert.', type='positive')
-                                return _save
-                            ui.button('Titel speichern', on_click=save_title_factory())
+                                    ui.notify('Name gespeichert.', type='positive')
+                                ui.button(on_click=save_name, icon='check').props('flat color=positive').tooltip('Name speichern')
+                            ui.link(fname, f"/station-files/{sanitize_id(station_id)}/{fname}")
+                            def rename_factory(name=fname, ti=title_input):
+                                def _open_dialog():
+                                    with ui.dialog() as dlg:
+                                        with ui.card():
+                                            ui.label('Datei umbenennen')
+                                            new_name_input = ui.input(value=name, label='Neuer Dateiname (inkl. Erweiterung)')
+                                            with ui.row().classes('justify-end w-full mt-2'):
+                                                ui.button('Abbrechen', on_click=dlg.close)
+                                                async def do_rename():
+                                                    if not app.storage.user.get('authenticated'):
+                                                        ui.notify('Bitte zuerst einloggen.', type='warning')
+                                                        return
+                                                    new_name = os.path.basename(new_name_input.value or '')
+                                                    if not new_name:
+                                                        ui.notify('Name darf nicht leer sein.', type='warning')
+                                                        return
+                                                    old_path = os.path.join(ensure_station_dir(station_id), name)
+                                                    new_path = os.path.join(ensure_station_dir(station_id), new_name)
+                                                    if os.path.exists(new_path):
+                                                        ui.notify('Zieldatei existiert bereits.', type='warning')
+                                                        return
+                                                    try:
+                                                        os.rename(old_path, new_path)
+                                                    except Exception as e:
+                                                        ui.notify(f'Umbenennen fehlgeschlagen: {e}', type='negative')
+                                                        return
+                                                    m = await run.io_bound(load_meta, station_id)
+                                                    if not isinstance(m, dict):
+                                                        m = {}
+                                                    t = m.get('titles', {}) if isinstance(m.get('titles'), dict) else {}
+                                                    if name in t:
+                                                        t[new_name] = t.pop(name)
+                                                    m['titles'] = t
+                                                    await run.io_bound(save_meta, station_id, m)
+                                                    ui.notify('Datei umbenannt.', type='positive')
+                                                    dlg.close()
+                                                    await refresh_files()
+                                                ui.button('Speichern', on_click=do_rename).props('color=primary')
+                                    dlg.open()
+                                return _open_dialog
+                            ui.button('Umbenennen', on_click=rename_factory()).props('flat')
+                            if fname.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+                                # Zeige Bilder direkt inline größer und optional in Dialog
+                                ui.image(f"/station-files/{sanitize_id(station_id)}/{fname}").classes('max-w-[60vw] max-h-[40vh] rounded')
+                                def preview_factory(name=fname):
+                                    def _open():
+                                        with ui.dialog() as d:
+                                            d.props('maximized')
+                                            with ui.card().classes('w-full h-full'):
+                                                ui.image(f"/station-files/{sanitize_id(station_id)}/{name}").classes('w-full h-full object-contain rounded')
+                                                ui.button('Schließen', on_click=d.close).classes('absolute top-2 right-2')
+                                        d.open()
+                                    return _open
+                                ui.button('Vollbild', on_click=preview_factory())
                             def delete_factory(name=fname):
                                 def _delete():
                                     if not app.storage.user.get('authenticated'):
@@ -505,7 +319,7 @@ async def station_page(request: Request, station_id: str):
                                             ui.notify(f'Löschen fehlgeschlagen: {e}', type='negative')
                                             return
                                         ui.notify('Datei gelöscht.', type='positive')
-                                        run.async_task(refresh_files())
+                                        ui.timer(0.01, lambda: asyncio.create_task(refresh_files()), once=True)
                                     ui.dialog() \
                                         .classes('p-4')
                                     with ui.dialog() as dlg:
@@ -522,6 +336,7 @@ async def station_page(request: Request, station_id: str):
                     ui.label('Noch keine Dateien vorhanden.').classes('text-gray-500')
 
         def on_upload(e):
+            # Direkt-Upload: schneller & stabiler auf mobilen Browsern
             dest_dir = ensure_station_dir(station_id)
             try:
                 target_path = os.path.join(dest_dir, e.name)
@@ -531,11 +346,9 @@ async def station_page(request: Request, station_id: str):
             except Exception as ex:
                 ui.notify(f'Upload fehlgeschlagen: {ex}', type='negative')
                 return
-            ui.timer(0.01, lambda: run.async_task(refresh_files()), once=True)
+            ui.timer(0.01, lambda: asyncio.create_task(refresh_files()), once=True)
 
-        if app.storage.user.get('authenticated'):
-            ui.upload(multiple=True, auto_upload=True, on_upload=on_upload)
-        else:
+        if not app.storage.user.get('authenticated'):
             ui.label('Bitte einloggen, um Dateien hochzuladen.').classes('text-gray-600')
         await refresh_files()
 
@@ -852,19 +665,9 @@ async def main_page(request: Request):
 
     # no dialog open on load anymore
 
+from app.auth import load_storage_secret as _load_storage_secret
 def load_storage_secret(filepath: str = ".secret") -> str:
-    """Lädt das storage_secret aus .secret (neu: key=value Format)."""
-    try:
-        values = parse_secret_file(filepath)
-        secret = values.get('STORAGE_SECRET') or values.get('storage_secret')
-        if not secret:
-            logging.warning(f"Die Secret-Datei '{filepath}' enthält kein STORAGE_SECRET. Es wird ein temporäres Secret verwendet.")
-            return "temp_secret_please_run_setup"
-        return secret
-    except FileNotFoundError:
-        logging.error(f"FEHLER: Secret-Datei '{filepath}' nicht gefunden. Führen Sie 'bash setup.sh' aus.")
-        logging.error("Verwende ein unsicheres, temporäres Secret. UI-Elemente funktionieren möglicherweise nicht wie erwartet.")
-        return "temp_secret_please_run_setup"
+    return _load_storage_secret(filepath)
 
 ui.run(
     storage_secret=load_storage_secret()
