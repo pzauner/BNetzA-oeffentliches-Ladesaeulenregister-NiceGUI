@@ -603,7 +603,7 @@ async def main_page(request: Request):
                     async def open_editor_for_search():
                         target_id = (search_input.value or '').strip()
                         if target_id:
-                            ui.open(f"/station/{target_id}")
+                            ui.navigate.to(f"/station/{target_id}")
                         else:
                             ui.notify('Bitte eine gültige ID eingeben.', type='warning')
                     ui.button('Editor', on_click=open_editor_for_search).props('outline')
