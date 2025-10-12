@@ -10,13 +10,36 @@ if [ ! -f "app.py" ]; then
     exit 1
 fi
 
-echo ">> 2. Generiere ein sicheres, zufälliges storage_secret..."
+echo ">> 2. Generiere Secrets und Credentials in .secret (key=value) ..."
 
-# Generiere einen langen, zufälligen String und speichere ihn in .secret.
-# Überschreibe die Datei jedes Mal, um sicherzustellen, dass sie aktuell ist.
-head -c 48 /dev/urandom | base64 | tr -d '/+' | head -c 64 > .secret
+# Wenn .secret existiert, nicht blind überschreiben: vorhandene Keys erhalten
+if [ -f .secret ]; then
+  # Sicherung erstellen
+  cp .secret .secret.bak
+fi
 
-echo "SUCCESS: .secret wurde erfolgreich erstellt/aktualisiert."
+STORAGE_SECRET=$(grep '^STORAGE_SECRET=' .secret 2>/dev/null | cut -d'=' -f2-)
+AUTH_USERNAME=$(grep '^AUTH_USERNAME=' .secret 2>/dev/null | cut -d'=' -f2-)
+AUTH_PASSWORD=$(grep '^AUTH_PASSWORD=' .secret 2>/dev/null | cut -d'=' -f2-)
+
+if [ -z "$STORAGE_SECRET" ]; then
+  STORAGE_SECRET=$(head -c 48 /dev/urandom | base64 | tr -d '/+' | head -c 64)
+fi
+if [ -z "$AUTH_USERNAME" ]; then
+  AUTH_USERNAME="admin"
+fi
+if [ -z "$AUTH_PASSWORD" ]; then
+  AUTH_PASSWORD=$(head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 14)
+fi
+
+{
+  echo "STORAGE_SECRET=$STORAGE_SECRET"
+  echo "AUTH_USERNAME=$AUTH_USERNAME"
+  echo "AUTH_PASSWORD=$AUTH_PASSWORD"
+} > .secret
+
+echo "SUCCESS: .secret wurde erstellt/aktualisiert."
+echo "Login-Credentials: $AUTH_USERNAME / $AUTH_PASSWORD"
 
 
 echo ""

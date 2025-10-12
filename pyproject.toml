@@ -19,5 +19,5 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/ihr-benutzer/BNetzA-oeffentliches-Ladesaeulenregister-NiceGUI"
-"Bug Tracker" = "https://github.com/ihr-benutzer/BNetzA-oeffentliches-Ladesaeulenregister-NiceGUI/issues"
+Homepage = "https://github.com/pzauner/BNetzA-oeffentliches-Ladesaeulenregister-NiceGUI"
+"Bug Tracker" = "https://github.com/pzauner/BNetzA-oeffentliches-Ladesaeulenregister-NiceGUI/issues"
