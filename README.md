@@ -57,7 +57,7 @@ Die Filter für Betreiber und Ladeleistung werden ebenfalls dynamisch auf Basis 
 
 ## Designentscheidungen: Upload-Verhalten (Mobile)
 
-Auf der Stationsseite verwenden wir einen direkten Upload-Handler, der die vom NiceGUI-Upload-Event bereitgestellten Bytes (`e.content.read()`) unmittelbar in die jeweilige Stationsablage (`station-context/<ID>/`) schreibt. Dieser Ansatz vermeidet zusätzliche Bestätigungsschritte und funktioniert auf mobilen Browsern zuverlässiger und konsistenter, wo Mehrfach-Dialoge und automatische Uploads mitunter restriktiv behandelt werden.
+Auf der Stationsseite verwenden wir einen direkten Upload-Handler, der die vom NiceGUI-Upload-Event bereitgestellten Bytes (`e.content.read()`) unmittelbar in die jeweilige Stationsablage (`station-context/<ID>/`) schreibt. Dieser Ansatz vermeidet zusätzliche Bestätigungsschritte und funktioniert auf mobilen Browsern angenehmer.
 
 Hinweis:
 - Der Upload löst nach erfolgreichem Speichern eine UI-Aktualisierung der Dateiliste aus.
