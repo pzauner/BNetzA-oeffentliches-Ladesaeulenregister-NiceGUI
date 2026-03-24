@@ -5,12 +5,13 @@ import pandas as pd
 import sys
 import os
 import html
-from typing import Dict, List, Any, Optional, Tuple
+import math
+from typing import Dict, List, Any, Optional
 import logging
 import json
 from app.config import DOWNLOAD_DIR, CONTEXT_DIR, BNETZA_PAGE_URL, MAX_MARKERS_IN_VIEW, KARLSRUHE_COORDS, STATION_PAGE_ROUTE
 from app.data import DownloadState, find_csv_download_url, download_csv, get_available_csvs, load_data, get_latest_csv
-from app.storage import sanitize_id, get_station_dir, ensure_station_dir, load_notes_html, save_notes_html, list_station_files, load_meta, save_meta
+from app.storage import sanitize_id, get_station_dir, ensure_station_dir, load_notes_html, save_notes_html, list_station_files, load_meta, save_meta, load_public_access_status_map
 import asyncio
 from app.index import load_station_index, save_station_index
 from app.auth import login, AuthMiddleware, load_storage_secret
@@ -23,6 +24,19 @@ logging.basicConfig(
 )
 
 # constants moved to app.config
+PUBLIC_ACCESS_OPTIONS: Dict[str, str] = {
+    'eindeutig_oeffentlich': 'Eindeutig öffentlich zugänglich',
+    'uneindeutig': 'Uneindeutig',
+    'eindeutig_nicht_oeffentlich': 'Eindeutig nicht öffentlich zugänglich',
+    'ungeprueft': 'Ungeprüft',
+}
+PUBLIC_ACCESS_COLORS: Dict[str, str] = {
+    'eindeutig_oeffentlich': '#2e7d32',       # grün
+    'uneindeutig': '#f9a825',                 # gelb
+    'eindeutig_nicht_oeffentlich': '#c62828', # rot
+    'ungeprueft': '#607d8b',                  # blau-grau
+}
+DEFAULT_PUBLIC_ACCESS_STATUS = 'ungeprueft'
 
 # --- Data Management & State ---
 
@@ -150,6 +164,36 @@ async def station_page(request: Request, station_id: str):
             with ui.row().classes('gap-4 mt-2'):
                 ui.link('Route mit Google Maps', google_maps_url, new_tab=True)
                 ui.link('Route mit Apple Maps', apple_maps_url, new_tab=True)
+
+        ui.separator()
+        ui.label('Zugangsstatus').classes('text-lg font-semibold')
+        meta = await run.io_bound(load_meta, station_id)
+        current_public_access = meta.get('public_access_status', DEFAULT_PUBLIC_ACCESS_STATUS)
+        if current_public_access not in PUBLIC_ACCESS_OPTIONS:
+            current_public_access = DEFAULT_PUBLIC_ACCESS_STATUS
+
+        if app.storage.user.get('authenticated'):
+            async def save_public_access_status(e: Any) -> None:
+                selected_status = e.value if e.value in PUBLIC_ACCESS_OPTIONS else DEFAULT_PUBLIC_ACCESS_STATUS
+                m = await run.io_bound(load_meta, station_id)
+                if not isinstance(m, dict):
+                    m = {}
+                m['public_access_status'] = selected_status
+                await run.io_bound(save_meta, station_id, m)
+                ui.notify('Zugangsstatus gespeichert.', type='positive')
+
+            status_toggle = ui.toggle(
+                options=PUBLIC_ACCESS_OPTIONS,
+                value=current_public_access,
+                on_change=save_public_access_status,
+            ).classes('w-full')
+        else:
+            status_toggle = ui.toggle(
+                options=PUBLIC_ACCESS_OPTIONS,
+                value=current_public_access,
+            ).classes('w-full')
+            status_toggle.disable()
+            ui.label('Bitte einloggen, um den Zugangsstatus zu ändern.').classes('text-gray-600')
 
         ui.separator()
         if app.storage.user.get('authenticated'):
@@ -301,7 +345,10 @@ async def station_page(request: Request, station_id: str):
 async def main_page(request: Request):
     df: Optional[pd.DataFrame] = None
     active_markers: Dict[str, Any] = {}
+    marker_render_state: Dict[str, tuple[float, float, str, str]] = {}
     id_to_open: Optional[str] = None
+    is_view_updating = False
+    last_bounds: Optional[Dict[str, float]] = None
 
     id_col = 'Ladeeinrichtungs-ID'
     lat_col = 'Breitengrad'
@@ -314,108 +361,225 @@ async def main_page(request: Request):
     available_csvs = get_available_csvs()
     app.storage.user.setdefault('selected_csv', available_csvs[0] if available_csvs else None)
     app.storage.user.setdefault('panel_is_visible', True)
+    app.storage.user.setdefault('map_center', [KARLSRUHE_COORDS[0], KARLSRUHE_COORDS[1]])
+    app.storage.user.setdefault('map_zoom', 13)
+    loaded_csv_name: Optional[str] = app.storage.user.get('selected_csv')
+
+    def get_initial_map_view() -> tuple[tuple[float, float], int]:
+        center = app.storage.user.get('map_center', KARLSRUHE_COORDS)
+        zoom = app.storage.user.get('map_zoom', 13)
+        try:
+            if isinstance(center, (list, tuple)) and len(center) == 2:
+                lat = float(center[0])
+                lon = float(center[1])
+                center_out = (lat, lon)
+            else:
+                center_out = KARLSRUHE_COORDS
+        except Exception:
+            center_out = KARLSRUHE_COORDS
+        try:
+            zoom_out = int(zoom)
+        except Exception:
+            zoom_out = 13
+        return center_out, zoom_out
 
     async def update_view():
-        nonlocal active_markers, id_to_open
-        if df is None:
-            for marker in active_markers.values():
-                m.remove_layer(marker)
-            active_markers.clear()
-            operator_select.options.clear()
-            power_select.options.clear()
-            operator_select.update()
-            power_select.update()
+        nonlocal active_markers, marker_render_state, id_to_open, is_view_updating, last_bounds
+        if is_view_updating:
             return
-        
-        ui.notify('Aktualisiere Kartenausschnitt...', timeout=1)
-
+        is_view_updating = True
+        view_update_spinner.set_visibility(True)
         try:
-            bounds = await m.run_map_method('getBounds')
-            min_lat, min_lon = bounds['_southWest']['lat'], bounds['_southWest']['lng']
-            max_lat, max_lon = bounds['_northEast']['lat'], bounds['_northEast']['lng']
-        except Exception as e:
-            logging.warning(f"Could not get map bounds: {e}")
-            return
+            # Persist current map view for "Zur Karte" round-trip.
+            try:
+                current_center = m.center
+                if isinstance(current_center, (list, tuple)) and len(current_center) == 2:
+                    app.storage.user['map_center'] = [float(current_center[0]), float(current_center[1])]
+                app.storage.user['map_zoom'] = int(m.zoom)
+            except Exception:
+                pass
 
-        df_in_view = df[
-            (df[lat_col] >= min_lat) & (df[lat_col] <= max_lat) &
-            (df[lon_col] >= min_lon) & (df[lon_col] <= max_lon)
-        ]
+            if df is None:
+                for marker in active_markers.values():
+                    m.remove_layer(marker)
+                active_markers.clear()
+                marker_render_state.clear()
+                operator_select.options.clear()
+                power_select.options.clear()
+                operator_select.update()
+                power_select.update()
+                return
 
-        # Update filter options based on the current view
-        unique_operators = sorted(df_in_view[operator_col].unique())
-        unique_powers = sorted(df_in_view[power_col].unique())
-        
-        if operator_select.options != unique_operators:
-            operator_select.options = unique_operators
-            operator_select.update()
-            
-        if power_select.options != unique_powers:
-            power_select.options = unique_powers
-            power_select.update()
+            bounds_ready = False
+            df_in_view = df
+            try:
+                bounds = await m.run_map_method('getBounds', timeout=2.5)
+                if isinstance(bounds, dict):
+                    sw = bounds.get('_southWest')
+                    ne = bounds.get('_northEast')
+                    if isinstance(sw, dict) and isinstance(ne, dict):
+                        min_lat, min_lon = sw.get('lat'), sw.get('lng')
+                        max_lat, max_lon = ne.get('lat'), ne.get('lng')
+                        if None not in (min_lat, min_lon, max_lat, max_lon):
+                            bounds_ready = True
+                            last_bounds = {
+                                'min_lat': float(min_lat),
+                                'min_lon': float(min_lon),
+                                'max_lat': float(max_lat),
+                                'max_lon': float(max_lon),
+                            }
+                            df_in_view = df[
+                                (df[lat_col] >= float(min_lat)) & (df[lat_col] <= float(max_lat)) &
+                                (df[lon_col] >= float(min_lon)) & (df[lon_col] <= float(max_lon))
+                            ]
+            except Exception as e:
+                logging.warning(f"Could not get map bounds: {e}")
+            if not bounds_ready:
+                if last_bounds is not None:
+                    df_in_view = df[
+                        (df[lat_col] >= last_bounds['min_lat']) & (df[lat_col] <= last_bounds['max_lat']) &
+                        (df[lon_col] >= last_bounds['min_lon']) & (df[lon_col] <= last_bounds['max_lon'])
+                    ]
+                else:
+                    # startup fallback around current center to avoid "empty map" and avoid full dataset
+                    center_lat, center_lon = m.center
+                    lat_span = 0.20
+                    lon_span = 0.30
+                    df_in_view = df[
+                        (df[lat_col] >= center_lat - lat_span) & (df[lat_col] <= center_lat + lat_span) &
+                        (df[lon_col] >= center_lon - lon_span) & (df[lon_col] <= center_lon + lon_span)
+                    ]
 
-        df_to_display = df_in_view
-        selected_ops = app.storage.user.get('selected_operators', [])
-        if selected_ops:
-            df_to_display = df_to_display[df_to_display[operator_col].isin(selected_ops)]
+            # Betreiber global aus gesamtem Datensatz, Leistung weiterhin ausschnittsbasiert.
+            # Keep currently selected values in options to avoid implicit reset by the select widget.
+            unique_operators = sorted(df[operator_col].unique())
+            unique_powers = sorted(df_in_view[power_col].unique())
+            selected_powers = app.storage.user.get('selected_powers', [])
+            for selected_power in selected_powers:
+                if selected_power not in unique_powers:
+                    unique_powers.append(selected_power)
 
-        selected_powers = app.storage.user.get('selected_powers', [])
-        if selected_powers:
-            df_to_display = df_to_display[df_to_display[power_col].isin(selected_powers)]
-        
-        if len(df_to_display) > MAX_MARKERS_IN_VIEW:
-            ui.notify(f"Anzeigelimit erreicht. Zeige {MAX_MARKERS_IN_VIEW} von {len(df_to_display)}.", type='warning')
-            df_to_display = df_to_display.head(MAX_MARKERS_IN_VIEW)
+            if operator_select.options != unique_operators:
+                operator_select.options = unique_operators
+                operator_select.update()
 
-        # remove previous markers from map
-        for marker in active_markers.values():
-            m.remove_layer(marker)
-        active_markers.clear()
+            if power_select.options != unique_powers:
+                power_select.options = unique_powers
+                power_select.update()
 
-        # group markers by near-identical coordinates (rounded to 5 decimals ~ 1m)
-        group_counts: Dict[Tuple[float, float], int] = {}
-        for _, row in df_to_display.iterrows():
-            key = (round(float(row[lat_col]), 5), round(float(row[lon_col]), 5))
-            group_counts[key] = group_counts.get(key, 0) + 1
-        group_indices: Dict[Tuple[float, float], int] = {k: 0 for k in group_counts}
+            df_to_display = df_in_view
+            selected_ops = app.storage.user.get('selected_operators', [])
+            if selected_ops:
+                df_to_display = df_to_display[df_to_display[operator_col].isin(selected_ops)]
 
-        for _, row in df_to_display.iterrows():
-            lade_id = str(row[id_col])
-            lat, lon = float(row[lat_col]), float(row[lon_col])
-            betreiber = html.escape(str(row[operator_col]))
-            adresse = html.escape(f"{row.get('Straße', '')} {row.get('Hausnummer', '')}, {row.get('Postleitzahl', '')} {row.get('Ort', '')}")
-            leistung = html.escape(f"{row.get(power_col, 'N/A')} kW")
-            google_maps_url = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}"
-            apple_maps_url = f"http://maps.apple.com/?daddr={lat},{lon}"
-            edit_link = f"/station/{lade_id}"
-            popup_html = f"""
-                <div>
-                    <b>ID:</b> {lade_id}<br>
-                    <b>Betreiber:</b> {betreiber}<br>
-                    <b>Adresse:</b> {adresse}<br>
-                    <b>Leistung:</b> {leistung}<br>
-                    <a href=\"{google_maps_url}\" target=\"_blank\">Route mit Google Maps</a><br>
-                    <a href=\"{apple_maps_url}\" target=\"_blank\">Route mit Apple Maps</a><br>
-                    <a href=\"{edit_link}\" style=\"display:inline-block;margin-top:8px;\">Kontext bearbeiten</a>
-                </div>
-            """
+            selected_powers = app.storage.user.get('selected_powers', [])
+            if selected_powers:
+                df_to_display = df_to_display[df_to_display[power_col].isin(selected_powers)]
 
-            key = (round(lat, 5), round(lon, 5))
-            count = group_counts.get(key, 1)
-            idx = group_indices.get(key, 0)
-            group_indices[key] = idx + 1
-            # distribute rotation angles evenly
-            rotation_angle = (idx * (360.0 / count)) if count > 1 else 0.0
+            if len(df_to_display) > MAX_MARKERS_IN_VIEW:
+                ui.notify(f"Anzeigelimit erreicht. Zeige {MAX_MARKERS_IN_VIEW} von {len(df_to_display)}.", type='warning')
+                df_to_display = df_to_display.head(MAX_MARKERS_IN_VIEW)
 
-            marker = m.marker(latlng=(lat, lon), options={'rotationAngle': rotation_angle})
-            marker.run_method('bindPopup', popup_html)
-            active_markers[lade_id] = marker
+            # group identical coordinates and place them in small rings around the real point
+            grouped_rows: Dict[tuple[float, float], List[pd.Series]] = {}
+            for _, row in df_to_display.iterrows():
+                key = (round(float(row[lat_col]), 6), round(float(row[lon_col]), 6))
+                grouped_rows.setdefault(key, []).append(row)
 
-        if id_to_open and id_to_open in active_markers:
-            active_markers[id_to_open].run_method('openPopup')
-            id_to_open = None
+            visible_station_ids = df_to_display[id_col].astype(str).tolist()
+            public_access_status_map = await run.io_bound(load_public_access_status_map, visible_station_ids)
 
-        ui.notify(f"{len(active_markers)} Ladesäulen angezeigt.", type='positive', timeout=2)
+            new_marker_specs: Dict[str, tuple[float, float, str, str]] = {}
+
+            for _, rows_at_location in grouped_rows.items():
+                count_at_location = len(rows_at_location)
+                for idx, row in enumerate(rows_at_location):
+                    lade_id = str(row[id_col])
+                    base_lat, base_lon = float(row[lat_col]), float(row[lon_col])
+                    betreiber = html.escape(str(row[operator_col]))
+                    adresse = html.escape(f"{row.get('Straße', '')} {row.get('Hausnummer', '')}, {row.get('Postleitzahl', '')} {row.get('Ort', '')}")
+                    leistung = html.escape(f"{row.get(power_col, 'N/A')} kW")
+                    status_key = public_access_status_map.get(lade_id, DEFAULT_PUBLIC_ACCESS_STATUS)
+                    if status_key not in PUBLIC_ACCESS_OPTIONS:
+                        status_key = DEFAULT_PUBLIC_ACCESS_STATUS
+                    status_label = PUBLIC_ACCESS_OPTIONS[status_key]
+
+                    if count_at_location > 1:
+                        layer = idx // 8
+                        pos = idx % 8
+                        slots_in_layer = min(8, count_at_location - (layer * 8))
+                        angle = (2 * math.pi * pos) / max(slots_in_layer, 1)
+                        radius_m = 7.0 + (layer * 7.0)
+                        lat_offset = (radius_m / 111_320.0) * math.sin(angle)
+                        lon_scale = 111_320.0 * max(math.cos(math.radians(base_lat)), 0.2)
+                        lon_offset = (radius_m / lon_scale) * math.cos(angle)
+                        marker_lat = base_lat + lat_offset
+                        marker_lon = base_lon + lon_offset
+                    else:
+                        marker_lat = base_lat
+                        marker_lon = base_lon
+
+                    google_maps_url = f"https://www.google.com/maps/dir/?api=1&destination={base_lat},{base_lon}"
+                    apple_maps_url = f"http://maps.apple.com/?daddr={base_lat},{base_lon}"
+                    edit_link = f"/station/{lade_id}"
+                    popup_html = f"""
+                        <div>
+                            <b>ID:</b> {lade_id}<br>
+                            <b>Betreiber:</b> {betreiber}<br>
+                            <b>Adresse:</b> {adresse}<br>
+                            <b>Leistung:</b> {leistung}<br>
+                            <b>Zugangsstatus:</b> {status_label}<br>
+                            <b>Säulen am Standort:</b> {count_at_location}<br>
+                            <a href=\"{google_maps_url}\" target=\"_blank\">Route mit Google Maps</a><br>
+                            <a href=\"{apple_maps_url}\" target=\"_blank\">Route mit Apple Maps</a><br>
+                            <a href=\"{edit_link}\" style=\"display:inline-block;margin-top:8px;\">Kontext bearbeiten</a>
+                        </div>
+                    """
+
+                    marker_color = PUBLIC_ACCESS_COLORS.get(status_key, PUBLIC_ACCESS_COLORS[DEFAULT_PUBLIC_ACCESS_STATUS])
+                    new_marker_specs[lade_id] = (marker_lat, marker_lon, marker_color, popup_html)
+
+            current_ids = set(active_markers.keys())
+            new_ids = set(new_marker_specs.keys())
+
+            # remove markers no longer visible
+            for marker_id in (current_ids - new_ids):
+                marker = active_markers.pop(marker_id, None)
+                if marker is not None:
+                    m.remove_layer(marker)
+                marker_render_state.pop(marker_id, None)
+
+            # add/update only changed markers
+            for marker_id, (marker_lat, marker_lon, marker_color, popup_html) in new_marker_specs.items():
+                old_spec = marker_render_state.get(marker_id)
+                new_spec = (round(marker_lat, 7), round(marker_lon, 7), marker_color, popup_html)
+                if old_spec == new_spec and marker_id in active_markers:
+                    continue
+
+                old_marker = active_markers.pop(marker_id, None)
+                if old_marker is not None:
+                    m.remove_layer(old_marker)
+
+                marker = m.generic_layer(name='circleMarker', args=[
+                    {'lat': marker_lat, 'lng': marker_lon},
+                    {
+                        'radius': 8,
+                        'color': marker_color,
+                        'fillColor': marker_color,
+                        'fillOpacity': 0.9,
+                        'weight': 2,
+                    },
+                ])
+                marker.run_method('bindPopup', popup_html)
+                active_markers[marker_id] = marker
+                marker_render_state[marker_id] = new_spec
+
+            if id_to_open and id_to_open in active_markers:
+                active_markers[id_to_open].run_method('openPopup')
+                id_to_open = None
+        finally:
+            view_update_spinner.set_visibility(False)
+            is_view_updating = False
 
     async def perform_search():
         await search_and_zoom(search_input.value)
@@ -452,25 +616,33 @@ async def main_page(request: Request):
     # removed dialog-based editor (replaced by dedicated page)
 
     async def on_csv_change(e: Any):
-        nonlocal df
-        app.storage.user['selected_operators'] = []
-        app.storage.user['selected_powers'] = []
-        new_df, error_message, stats = await run.io_bound(load_data, e.value)
+        nonlocal df, loaded_csv_name
+        new_csv = e.value
+        dataset_changed = (loaded_csv_name is not None and new_csv != loaded_csv_name)
+        if dataset_changed:
+            app.storage.user['selected_operators'] = []
+            app.storage.user['selected_powers'] = []
+            operator_select.value = []
+            power_select.value = []
+            operator_select.update()
+            power_select.update()
+        new_df, error_message, stats = await run.io_bound(load_data, new_csv)
         if error_message:
             ui.notify(error_message, type='negative')
             df = None
         else:
             df = new_df
+            loaded_csv_name = new_csv
             if stats:
                 removed_count = stats['raw'] - stats['cleaned']
                 ui.notify(
-                    f"'{os.path.basename(e.value)}' geladen: {stats['cleaned']:,} von {stats['raw']:,} Ladesäulen geladen. "
+                    f"'{os.path.basename(new_csv)}' geladen: {stats['cleaned']:,} von {stats['raw']:,} Ladesäulen geladen. "
                     f"({removed_count:,} Einträge wegen fehlender Daten entfernt).",
                     type='positive', multi_line=True, close_button=True
                 )
             # Update station index last_seen for current dataset
             try:
-                dataset_name = os.path.basename(e.value)
+                dataset_name = os.path.basename(new_csv)
                 index = await run.io_bound(load_station_index)
                 id_col_local = 'Ladeeinrichtungs-ID'
                 if id_col_local in df.columns:
@@ -517,6 +689,12 @@ async def main_page(request: Request):
     def toggle_panel():
         app.storage.user['panel_is_visible'] = not app.storage.user.get('panel_is_visible', True)
         toggle_button.props(f"icon={'menu_open' if app.storage.user['panel_is_visible'] else 'menu'}")
+
+    async def on_map_moveend(e: Any):
+        await update_view()
+
+    async def on_map_zoomend(e: Any):
+        await update_view()
 
     with ui.row().classes('w-full h-screen p-0 m-0 no-wrap'):
         with ui.column().classes('w-full md:w-1/3 h-full p-4 overflow-auto') \
@@ -565,12 +743,37 @@ async def main_page(request: Request):
                     power_select = ui.select(
                         options=[], label='Leistung (kW)', multiple=True, with_input=True,
                     ).props('use-chips').bind_value(app.storage.user, 'selected_powers').classes('w-full')
-            
-            ui.button('Karte aktualisieren', on_click=update_view).classes('w-full mt-2')
+
+            async def set_parkraumgesellschaft_bw():
+                nonlocal df
+                if df is None:
+                    return
+                operator_series = df[operator_col].astype(str)
+                target_operator = 'Parkraumgesellschaft Baden-Württemberg GmbH'
+                candidates = sorted({
+                    op for op in operator_series.unique()
+                    if op == target_operator
+                })
+                if not candidates:
+                    ui.notify(f'Betreiber "{target_operator}" im Datensatz nicht gefunden.', type='warning')
+                    return
+                app.storage.user['selected_operators'] = candidates
+                operator_select.value = candidates
+                operator_select.update()
+                await update_view()
+
+            with ui.row().classes('w-full mt-2 gap-2'):
+                ui.button('Karte aktualisieren', on_click=update_view).classes('grow')
+                ui.button('Ein ❤️ für Betrug', on_click=set_parkraumgesellschaft_bw).props('color=negative').classes('grow')
 
             with ui.column().classes('w-full items-center mt-4') as progress_container:
                 progress_bar = ui.linear_progress(value=0).props('instant-feedback').classes('w-full')
                 progress_label = ui.label("").classes('text-sm text-gray-500')
+
+            with ui.row().classes('w-full items-center gap-2 mt-2 text-sm text-gray-500') as view_update_spinner:
+                ui.spinner(size='sm')
+                ui.label('Kartenausschnitt wird aktualisiert...')
+                view_update_spinner.set_visibility(False)
             
             def update_progress():
                 with download_state.lock:
@@ -583,16 +786,20 @@ async def main_page(request: Request):
             ui.timer(0.1, update_progress, active=True)
 
         with ui.column().classes('h-full p-0 m-0 grow'):
-            m = ui.leaflet(center=KARLSRUHE_COORDS, zoom=13, additional_resources=[
+            initial_center, initial_zoom = get_initial_map_view()
+            m = ui.leaflet(center=initial_center, zoom=initial_zoom, additional_resources=[
                 'https://unpkg.com/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.js',
             ]).classes('h-full')
-            m.on('zoomend', update_view, throttle=1.0)
-            m.on('dragend', update_view, throttle=1.0)
+            m.on('map-moveend', on_map_moveend, throttle=0.5)
+            m.on('map-zoomend', on_map_zoomend, throttle=0.5)
             
             toggle_button = ui.button(icon='menu_open', on_click=toggle_panel) \
                 .props('fab-mini flat color=grey-8').classes('absolute top-2 left-2 z-10')
 
-    await ui.context.client.connected()
+    try:
+        await ui.context.client.connected(timeout=10.0)
+    except TimeoutError:
+        logging.info('No client connection established within timeout; continuing without blocking initial load.')
     await check_and_download_data()
     selected_csv = app.storage.user.get('selected_csv')
     if selected_csv:
@@ -606,6 +813,10 @@ async def main_page(request: Request):
                 f"({removed_count:,} Einträge wegen fehlender Daten entfernt).",
                 type='positive', multi_line=True, close_button=True
             )
+    try:
+        await m.initialized(timeout=5.0)
+    except TimeoutError:
+        logging.info('Map did not initialize in time; attempting update anyway.')
     await update_view()
 
     # no dialog open on load anymore

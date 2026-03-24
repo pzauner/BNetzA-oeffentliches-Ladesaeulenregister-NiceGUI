@@ -64,3 +64,20 @@ def save_meta(station_id: str, meta: Dict[str, Any]) -> None:
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
+
+def load_public_access_status_map(station_ids: List[str]) -> Dict[str, str]:
+    status_map: Dict[str, str] = {}
+    for station_id in station_ids:
+        safe_id = sanitize_id(station_id)
+        meta_path = os.path.join(CONTEXT_DIR, safe_id, 'meta.json')
+        if not os.path.isfile(meta_path):
+            continue
+        try:
+            with open(meta_path, 'r', encoding='utf-8') as f:
+                meta = json.load(f)
+            status = meta.get('public_access_status')
+            if isinstance(status, str) and status:
+                status_map[station_id] = status
+        except Exception:
+            continue
+    return status_map
