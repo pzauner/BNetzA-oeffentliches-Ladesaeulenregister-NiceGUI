@@ -31,61 +31,6 @@ app.add_middleware(AuthMiddleware)
 
 # data and index helpers are imported from app.data / app.index
 
-def load_data(csv_filename: str) -> Tuple[Optional[pd.DataFrame], Optional[str], Optional[Dict[str, int]]]:
-    """Loads a CSV file into a pandas DataFrame, skipping the header."""
-    if not csv_filename:
-        return None, "Keine CSV-Datei ausgewählt.", None
-    
-    file_path = os.path.join(DOWNLOAD_DIR, csv_filename)
-    if not os.path.exists(file_path):
-        return None, f"Datei {csv_filename} nicht gefunden!", None
-
-    try:
-        # Find the actual header row
-        header_row = 0
-        with open(file_path, 'r', encoding='latin-1') as f:
-            for i, line in enumerate(f):
-                if 'Ladeeinrichtungs-ID' in line:
-                    header_row = i
-                    break
-            else:
-                return None, "Konnte die Kopfzeile in der CSV-Datei nicht finden.", None
-
-        df = pd.read_csv(
-            file_path,
-            low_memory=False,
-            encoding='latin-1',
-            delimiter=';',
-            skiprows=header_row,
-            decimal=',',
-            dtype={'Postleitzahl': str, 'Ladeeinrichtungs-ID': str}
-        )
-        raw_rows = len(df)
-        
-        id_col = 'Ladeeinrichtungs-ID'
-        lat_col = 'Breitengrad'
-        lon_col = 'Längengrad'
-        operator_col = 'Betreiber'
-        power_col = 'Nennleistung Ladeeinrichtung [kW]'
-
-        required_cols = [id_col, lat_col, lon_col, operator_col, power_col]
-        for col in required_cols:
-            if col not in df.columns:
-                return None, f"Erforderliche Spalte '{col}' nicht in der CSV-Datei gefunden.", None
-
-        df.dropna(subset=required_cols, inplace=True)
-        df[lat_col] = pd.to_numeric(df[lat_col], errors='coerce')
-        df[lon_col] = pd.to_numeric(df[lon_col], errors='coerce')
-        df.dropna(subset=[lat_col, lon_col], inplace=True)
-        
-        cleaned_rows = len(df)
-        stats = {'raw': raw_rows, 'cleaned': cleaned_rows}
-        
-        return df, None, stats
-    except Exception as e:
-        logging.error(f"Critical error loading data: {e}", exc_info=True)
-        return None, f"Ein kritischer Fehler beim Laden der Daten ist aufgetreten: {e}", None
-
 # --- UI Application ---
 
 # storage helpers are imported from app.storage
@@ -670,5 +615,6 @@ def load_storage_secret(filepath: str = ".secret") -> str:
     return _load_storage_secret(filepath)
 
 ui.run(
-    storage_secret=load_storage_secret()
+    storage_secret=load_storage_secret(),
+    port=8484,
 )

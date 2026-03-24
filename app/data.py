@@ -8,6 +8,8 @@ import pandas as pd
 import glob
 import os
 import logging
+import re
+import unicodedata
 from .config import DOWNLOAD_DIR, BNETZA_PAGE_URL
 
 
@@ -24,7 +26,7 @@ class DownloadState:
             self.progress = downloaded / total if total > 0 else 0
             self.downloaded_mb = downloaded / 1024 / 1024
             self.total_mb = total / 1024 / 1024
-    
+
     def start(self):
         with self.lock:
             self.is_running = True
@@ -85,45 +87,93 @@ def get_available_csvs() -> List[str]:
     return sorted([os.path.basename(f) for f in glob.glob(os.path.join(DOWNLOAD_DIR, '*.csv'))], reverse=True)
 
 
+def _normalize_column_name(name: str) -> str:
+    normalized = unicodedata.normalize('NFKD', name)
+    ascii_only = ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+    return re.sub(r'[^a-z0-9]+', '', ascii_only.lower())
+
+
+def _resolve_column(columns: List[str], candidates: List[str]) -> Optional[str]:
+    for candidate in candidates:
+        if candidate in columns:
+            return candidate
+    normalized_index = {_normalize_column_name(col): col for col in columns}
+    for candidate in candidates:
+        resolved = normalized_index.get(_normalize_column_name(candidate))
+        if resolved:
+            return resolved
+    return None
+
+
 def load_data(csv_filename: str) -> Tuple[Optional[pd.DataFrame], Optional[str], Optional[Dict[str, int]]]:
     if not csv_filename:
         return None, "Keine CSV-Datei ausgewählt.", None
     file_path = os.path.join(DOWNLOAD_DIR, csv_filename)
     if not os.path.exists(file_path):
         return None, f"Datei {csv_filename} nicht gefunden!", None
+
     try:
-        header_row = 0
-        with open(file_path, 'r', encoding='latin-1') as f:
-            for i, line in enumerate(f):
-                if 'Ladeeinrichtungs-ID' in line:
-                    header_row = i
+        header_row = None
+        selected_encoding = None
+        for encoding in ('utf-8-sig', 'utf-8', 'latin-1'):
+            try:
+                with open(file_path, 'r', encoding=encoding) as f:
+                    for i, line in enumerate(f):
+                        if 'Ladeeinrichtungs-ID' in line:
+                            header_row = i
+                            selected_encoding = encoding
+                            break
+                if header_row is not None:
                     break
-            else:
-                return None, "Konnte die Kopfzeile in der CSV-Datei nicht finden.", None
+            except UnicodeDecodeError:
+                continue
+
+        if header_row is None or selected_encoding is None:
+            return None, "Konnte die Kopfzeile in der CSV-Datei nicht finden.", None
 
         df = pd.read_csv(
             file_path,
             low_memory=False,
-            encoding='latin-1',
+            encoding=selected_encoding,
             delimiter=';',
             skiprows=header_row,
             decimal=',',
-            dtype={'Postleitzahl': str, 'Ladeeinrichtungs-ID': str}
+            dtype={'Postleitzahl': str, 'Ladeeinrichtungs-ID': str},
         )
         raw_rows = len(df)
+
+        canonical_candidates = {
+            'Ladeeinrichtungs-ID': ['Ladeeinrichtungs-ID', 'Ladeeinrichtungs ID'],
+            'Breitengrad': ['Breitengrad', 'Breitengrad (WGS84)'],
+            'Längengrad': ['Längengrad', 'Laengengrad', 'Längengrad (WGS84)'],
+            'Betreiber': ['Betreiber'],
+            'Nennleistung Ladeeinrichtung [kW]': [
+                'Nennleistung Ladeeinrichtung [kW]',
+                'Nennleistung Ladeeinrichtung',
+            ],
+        }
+
+        resolved_map: Dict[str, str] = {}
+        for canonical_name, candidates in canonical_candidates.items():
+            resolved = _resolve_column(list(df.columns), candidates)
+            if not resolved:
+                return None, f"Erforderliche Spalte '{canonical_name}' nicht in der CSV-Datei gefunden.", None
+            resolved_map[resolved] = canonical_name
+
+        df.rename(columns=resolved_map, inplace=True)
+
         id_col = 'Ladeeinrichtungs-ID'
         lat_col = 'Breitengrad'
         lon_col = 'Längengrad'
         operator_col = 'Betreiber'
         power_col = 'Nennleistung Ladeeinrichtung [kW]'
+
         required_cols = [id_col, lat_col, lon_col, operator_col, power_col]
-        for col in required_cols:
-            if col not in df.columns:
-                return None, f"Erforderliche Spalte '{col}' nicht in der CSV-Datei gefunden.", None
         df.dropna(subset=required_cols, inplace=True)
         df[lat_col] = pd.to_numeric(df[lat_col], errors='coerce')
         df[lon_col] = pd.to_numeric(df[lon_col], errors='coerce')
         df.dropna(subset=[lat_col, lon_col], inplace=True)
+
         cleaned_rows = len(df)
         stats = {'raw': raw_rows, 'cleaned': cleaned_rows}
         return df, None, stats
@@ -135,4 +185,3 @@ def load_data(csv_filename: str) -> Tuple[Optional[pd.DataFrame], Optional[str],
 def get_latest_csv() -> Optional[str]:
     csvs = get_available_csvs()
     return csvs[0] if csvs else None
-
