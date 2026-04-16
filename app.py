@@ -11,7 +11,7 @@ import logging
 import json
 from app.config import DOWNLOAD_DIR, CONTEXT_DIR, BNETZA_PAGE_URL, MAX_MARKERS_IN_VIEW, KARLSRUHE_COORDS, STATION_PAGE_ROUTE
 from app.data import DownloadState, find_csv_download_url, download_csv, get_available_csvs, load_data, get_latest_csv
-from app.storage import sanitize_id, get_station_dir, ensure_station_dir, load_notes_html, save_notes_html, list_station_files, load_meta, save_meta, load_public_access_status_map
+from app.storage import sanitize_id, get_station_dir, ensure_station_dir, load_notes_html, save_notes_html, list_station_files, load_meta, save_meta, load_public_access_status_map, load_afir_qr_check_map
 import asyncio
 from app.index import load_station_index, save_station_index
 from app.auth import login, AuthMiddleware, load_storage_secret
@@ -36,6 +36,12 @@ PUBLIC_ACCESS_COLORS: Dict[str, str] = {
     'eindeutig_nicht_oeffentlich': '#c62828', # rot
     'ungeprueft': '#607d8b',                  # blau-grau
 }
+REVIEWED_PUBLIC_ACCESS_STATUSES = {
+    'eindeutig_oeffentlich',
+    'uneindeutig',
+    'eindeutig_nicht_oeffentlich',
+}
+AFIR_QR_COLOR = '#ff00ff'  # magenta
 DEFAULT_PUBLIC_ACCESS_STATUS = 'ungeprueft'
 
 # --- Data Management & State ---
@@ -75,6 +81,68 @@ def get_station_header_text(row: pd.Series, id_col: str, operator_col: str, powe
         'adresse': adresse,
         'leistung': leistung,
     }
+
+
+def _normalize_text_value(value: Any) -> str:
+    if value is None:
+        return ''
+    return str(value).strip()
+
+
+def find_same_location_station_ids(
+    dataframe: pd.DataFrame,
+    reference_row: pd.Series,
+    station_id: str,
+    id_col: str,
+    lat_col: str,
+    lon_col: str,
+) -> List[str]:
+    coord_mask = pd.Series(False, index=dataframe.index)
+    ref_lat = reference_row.get(lat_col)
+    ref_lon = reference_row.get(lon_col)
+    if pd.notna(ref_lat) and pd.notna(ref_lon):
+        coord_mask = (dataframe[lat_col] == ref_lat) & (dataframe[lon_col] == ref_lon)
+
+    address_fields = ['Straße', 'Hausnummer', 'Postleitzahl', 'Ort']
+    ref_address = [_normalize_text_value(reference_row.get(col)) for col in address_fields]
+    address_mask = pd.Series(False, index=dataframe.index)
+    if any(ref_address):
+        address_mask = pd.Series(True, index=dataframe.index)
+        for col, value in zip(address_fields, ref_address):
+            series = dataframe[col].fillna('').astype(str).str.strip() if col in dataframe.columns else pd.Series('', index=dataframe.index)
+            address_mask &= (series == value)
+
+    location_mask = coord_mask | address_mask
+    same_location_ids = dataframe.loc[location_mask, id_col].dropna().astype(str).unique().tolist()
+    if station_id not in same_location_ids:
+        same_location_ids.append(station_id)
+    return same_location_ids
+
+
+def save_public_access_status_for_ids(station_ids: List[str], selected_status: str) -> int:
+    updated = 0
+    for sid in station_ids:
+        meta = load_meta(sid)
+        if not isinstance(meta, dict):
+            meta = {}
+        meta['public_access_status'] = selected_status
+        save_meta(sid, meta)
+        updated += 1
+    return updated
+
+
+def save_afir_qr_check_for_ids(station_ids: List[str], enabled: bool) -> int:
+    updated = 0
+    for sid in station_ids:
+        meta = load_meta(sid)
+        if not isinstance(meta, dict):
+            meta = {}
+        meta['afir_qr_check'] = bool(enabled)
+        if enabled and not meta.get('afir_qr_check_note'):
+            meta['afir_qr_check_note'] = 'Check dynamischer QR-Code nach AFIR?'
+        save_meta(sid, meta)
+        updated += 1
+    return updated
 
 @app.get('/station-files/{station_id}/{filename}')
 async def download_station_file(station_id: str, filename: str):
@@ -175,12 +243,17 @@ async def station_page(request: Request, station_id: str):
         if app.storage.user.get('authenticated'):
             async def save_public_access_status(e: Any) -> None:
                 selected_status = e.value if e.value in PUBLIC_ACCESS_OPTIONS else DEFAULT_PUBLIC_ACCESS_STATUS
-                m = await run.io_bound(load_meta, station_id)
-                if not isinstance(m, dict):
-                    m = {}
-                m['public_access_status'] = selected_status
-                await run.io_bound(save_meta, station_id, m)
-                ui.notify('Zugangsstatus gespeichert.', type='positive')
+                same_location_ids = await run.io_bound(
+                    find_same_location_station_ids,
+                    df,
+                    row,
+                    station_id,
+                    id_col,
+                    lat_col,
+                    lon_col,
+                )
+                updated_count = await run.io_bound(save_public_access_status_for_ids, same_location_ids, selected_status)
+                ui.notify(f'Zugangsstatus für {updated_count} Einträge am Standort gespeichert.', type='positive')
 
             status_toggle = ui.toggle(
                 options=PUBLIC_ACCESS_OPTIONS,
@@ -194,6 +267,40 @@ async def station_page(request: Request, station_id: str):
             ).classes('w-full')
             status_toggle.disable()
             ui.label('Bitte einloggen, um den Zugangsstatus zu ändern.').classes('text-gray-600')
+
+        ui.separator()
+        ui.label('AFIR-Check').classes('text-lg font-semibold')
+        current_afir_qr_check = bool(meta.get('afir_qr_check', False))
+        if app.storage.user.get('authenticated'):
+            async def save_afir_qr_check(e: Any) -> None:
+                same_location_ids = await run.io_bound(
+                    find_same_location_station_ids,
+                    df,
+                    row,
+                    station_id,
+                    id_col,
+                    lat_col,
+                    lon_col,
+                )
+                enabled = bool(e.value)
+                updated_count = await run.io_bound(save_afir_qr_check_for_ids, same_location_ids, enabled)
+                ui.notify(
+                    f'AFIR-QR-Check für {updated_count} Einträge am Standort {"aktiviert" if enabled else "deaktiviert"}.',
+                    type='positive',
+                )
+
+            ui.switch(
+                text='Check dynamischer QR-Code nach AFIR?',
+                value=current_afir_qr_check,
+                on_change=save_afir_qr_check,
+            )
+        else:
+            afir_switch = ui.switch(
+                text='Check dynamischer QR-Code nach AFIR?',
+                value=current_afir_qr_check,
+            )
+            afir_switch.disable()
+            ui.label('Bitte einloggen, um den AFIR-Check zu ändern.').classes('text-gray-600')
 
         ui.separator()
         if app.storage.user.get('authenticated'):
@@ -488,6 +595,7 @@ async def main_page(request: Request):
 
             visible_station_ids = df_to_display[id_col].astype(str).tolist()
             public_access_status_map = await run.io_bound(load_public_access_status_map, visible_station_ids)
+            afir_qr_check_map = await run.io_bound(load_afir_qr_check_map, visible_station_ids)
 
             new_marker_specs: Dict[str, tuple[float, float, str, str]] = {}
 
@@ -503,6 +611,8 @@ async def main_page(request: Request):
                     if status_key not in PUBLIC_ACCESS_OPTIONS:
                         status_key = DEFAULT_PUBLIC_ACCESS_STATUS
                     status_label = PUBLIC_ACCESS_OPTIONS[status_key]
+                    has_afir_qr_check = afir_qr_check_map.get(lade_id, False)
+                    afir_qr_check_label = 'Ja' if has_afir_qr_check else 'Nein'
 
                     if count_at_location > 1:
                         layer = idx // 8
@@ -529,6 +639,7 @@ async def main_page(request: Request):
                             <b>Adresse:</b> {adresse}<br>
                             <b>Leistung:</b> {leistung}<br>
                             <b>Zugangsstatus:</b> {status_label}<br>
+                            <b>AFIR-QR-Check:</b> {afir_qr_check_label}<br>
                             <b>Säulen am Standort:</b> {count_at_location}<br>
                             <a href=\"{google_maps_url}\" target=\"_blank\">Route mit Google Maps</a><br>
                             <a href=\"{apple_maps_url}\" target=\"_blank\">Route mit Apple Maps</a><br>
@@ -536,7 +647,12 @@ async def main_page(request: Request):
                         </div>
                     """
 
-                    marker_color = PUBLIC_ACCESS_COLORS.get(status_key, PUBLIC_ACCESS_COLORS[DEFAULT_PUBLIC_ACCESS_STATUS])
+                    if status_key in REVIEWED_PUBLIC_ACCESS_STATUSES:
+                        marker_color = PUBLIC_ACCESS_COLORS[status_key]
+                    elif has_afir_qr_check:
+                        marker_color = AFIR_QR_COLOR
+                    else:
+                        marker_color = PUBLIC_ACCESS_COLORS.get(status_key, PUBLIC_ACCESS_COLORS[DEFAULT_PUBLIC_ACCESS_STATUS])
                     new_marker_specs[lade_id] = (marker_lat, marker_lon, marker_color, popup_html)
 
             current_ids = set(active_markers.keys())

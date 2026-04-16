@@ -1,5 +1,7 @@
 # Local station context (notes and uploads)
 station-context/
+# Local analysis outputs
+analysis/
 # macOS
 .DS_Store
 

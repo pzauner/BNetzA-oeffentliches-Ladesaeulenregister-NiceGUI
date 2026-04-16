@@ -81,3 +81,21 @@ def load_public_access_status_map(station_ids: List[str]) -> Dict[str, str]:
         except Exception:
             continue
     return status_map
+
+
+def load_afir_qr_check_map(station_ids: List[str]) -> Dict[str, bool]:
+    afir_map: Dict[str, bool] = {}
+    for station_id in station_ids:
+        safe_id = sanitize_id(station_id)
+        meta_path = os.path.join(CONTEXT_DIR, safe_id, 'meta.json')
+        if not os.path.isfile(meta_path):
+            continue
+        try:
+            with open(meta_path, 'r', encoding='utf-8') as f:
+                meta = json.load(f)
+            afir_value = meta.get('afir_qr_check')
+            if isinstance(afir_value, bool):
+                afir_map[station_id] = afir_value
+        except Exception:
+            continue
+    return afir_map
