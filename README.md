@@ -18,34 +18,84 @@ Eine interaktive Kartenvisualisierung des öffentlichen Ladesäulenregisters der
 
 ## Installation & Ausführung
 
-Dieses Projekt verwendet [`uv`](https://github.com/astral-sh/uv) zur Verwaltung der Abhängigkeiten und zur Ausführung der App. `uv` ist ein extrem schneller Python-Paketmanager und -Installer.
+Dieses Projekt verwendet [`uv`](https://github.com/astral-sh/uv) für Abhängigkeiten und Start der App.
 
-1.  **`uv` installieren:**
-    Folgen Sie der [offiziellen Installationsanleitung](https://github.com/astral-sh/uv#installation), um `uv` auf Ihrem System zu installieren.
+### Lokal starten (empfohlen)
 
-2.  **Projekt klonen:**
-    ```bash
-    git clone https://github.com/umgefahren/BNetzA-oeffentliches-Ladesaeulenregister-NiceGUI.git
-    cd BNetzA-oeffentliches-Ladesaeulenregister-NiceGUI
-    ```
+1. **`uv` installieren**
+   Folgen Sie der [offiziellen Installationsanleitung](https://github.com/astral-sh/uv#installation).
 
-3.  **Setup-Skript ausführen (empfohlen):**
-    Für eine einfache und sichere Ersteinrichtung können Sie das mitgelieferte Setup-Skript verwenden. Es installiert die Abhängigkeiten und setzt ein sicheres, zufälliges `storage_secret` in der `app.py`.
-    ```bash
-    ./setup.sh
-    ```
-    *Hinweis: Möglicherweise müssen Sie das Skript zuerst ausführbar machen mit `chmod +x setup.sh`.*
+2. **Projekt klonen**
+   ```bash
+   git clone https://github.com/umgefahren/BNetzA-oeffentliches-Ladesaeulenregister-NiceGUI.git
+   cd BNetzA-oeffentliches-Ladesaeulenregister-NiceGUI
+   ```
 
-4.  **Anwendung starten:**
-    Führen Sie den folgenden Befehl im Projektverzeichnis aus:
-    ```bash
-    uv run app.py
-    ```
-    `uv` erstellt automatisch eine virtuelle Umgebung, installiert die in `pyproject.toml` definierten Abhängigkeiten (falls noch nicht geschehen) und startet die NiceGUI-Anwendung.
+3. **Setup ausführen**
+   ```bash
+   chmod +x setup.sh
+   ./setup.sh
+   ```
+   Das Skript:
+   - installiert Abhängigkeiten via `uv`,
+   - erstellt/aktualisiert `.secret`,
+   - erzeugt (falls nicht vorhanden) sichere Default-Werte für:
+     - `STORAGE_SECRET`
+     - `AUTH_USERNAME`
+     - `AUTH_PASSWORD`
 
-    Beim ersten Start werden die Ladesäulendaten (ca. 90 MB) von der Bundesnetzagentur heruntergeladen. Dies kann einen Moment dauern. Ein Fortschrittsbalken zeigt den Status an.
+4. **App starten**
+   ```bash
+   uv run app.py
+   ```
 
-Die Anwendung ist dann unter [http://127.0.0.1:8080](http://127.0.0.1:8080) in Ihrem Browser verfügbar.
+Die App läuft dann unter [http://127.0.0.1:8484](http://127.0.0.1:8484).
+
+Hinweise:
+- Beim ersten Start werden die Registerdaten automatisch geladen (mehrere 10 MB).
+- Login erfolgt über `/login` mit den Werten aus `.secret`.
+
+### `.secret` Format
+
+Die Datei `.secret` liegt im Projektroot und nutzt `key=value`:
+
+```env
+STORAGE_SECRET=...
+AUTH_USERNAME=admin
+AUTH_PASSWORD=...
+```
+
+### Als systemd-Service betreiben (Server)
+
+Beispiel für einen dauerhaften Dienst:
+
+`/etc/systemd/system/lsr.service`
+
+```ini
+[Unit]
+Description=LSR NiceGUI
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/bin/bash -lc 'cd ~/BNetzA-oeffentliches-Ladesaeulenregister-NiceGUI && exec ~/.local/bin/uv run app.py'
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Aktivieren:
+
+```bash
+systemctl daemon-reload
+systemctl enable --now lsr.service
+systemctl status lsr.service
+journalctl -u lsr.service -f
+```
 
 ## Wie es funktioniert
 
