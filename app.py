@@ -592,6 +592,7 @@ async def main_page(request: Request):
     app.storage.user.setdefault('selected_marker_types', [])
     app.storage.user.setdefault('proximity_filter_mode', 'with_neighbor')
     app.storage.user.setdefault('proximity_filter_m', 0)
+    app.storage.user.setdefault('marker_display_limit', MAX_MARKERS_IN_VIEW)
     available_csvs = get_available_csvs()
     app.storage.user.setdefault('selected_csv', available_csvs[0] if available_csvs else None)
     app.storage.user.setdefault('panel_is_visible', True)
@@ -755,9 +756,16 @@ async def main_page(request: Request):
                         visible_ids.append(station_id)
                 df_to_display = df_to_display[df_to_display[id_col].astype(str).isin(visible_ids)]
 
-            if len(df_to_display) > MAX_MARKERS_IN_VIEW:
-                ui.notify(f"Anzeigelimit erreicht. Zeige {MAX_MARKERS_IN_VIEW} von {len(df_to_display)}.", type='warning')
-                df_to_display = df_to_display.head(MAX_MARKERS_IN_VIEW)
+            marker_display_limit = MAX_MARKERS_IN_VIEW
+            if app.storage.user.get('authenticated'):
+                try:
+                    marker_display_limit = int(app.storage.user.get('marker_display_limit') or MAX_MARKERS_IN_VIEW)
+                except Exception:
+                    marker_display_limit = MAX_MARKERS_IN_VIEW
+                marker_display_limit = max(1, marker_display_limit)
+            if len(df_to_display) > marker_display_limit:
+                ui.notify(f"Anzeigelimit erreicht. Zeige {marker_display_limit} von {len(df_to_display)}.", type='warning')
+                df_to_display = df_to_display.head(marker_display_limit)
 
             # group identical coordinates and place them in small rings around the real point
             grouped_rows: Dict[tuple[float, float], List[pd.Series]] = {}
@@ -1111,6 +1119,15 @@ async def main_page(request: Request):
                 operator_select.update()
                 marker_type_select.update()
                 await update_view()
+
+            if app.storage.user.get('authenticated'):
+                ui.number(
+                    label='Anzeigelimit',
+                    min=1,
+                    step=100,
+                    format='%.0f',
+                    on_change=update_view,
+                ).props('clearable').bind_value(app.storage.user, 'marker_display_limit').classes('w-full')
 
             with ui.row().classes('w-full mt-2 gap-2'):
                 ui.button('Karte aktualisieren', on_click=update_view).classes('grow')
