@@ -90,6 +90,71 @@ def get_marker_filter_key(status_key: str, years: List[str]) -> str:
         return 'thg_eindeutig_nicht_oeffentlich'
     return 'thg_ungeprueft'
 
+
+def haversine_distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    radius_m = 6_371_000.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lambda = math.radians(lon2 - lon1)
+    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+    return 2 * radius_m * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def format_distance_m(distance_m: Optional[float]) -> str:
+    if distance_m is None:
+        return 'Keine weitere Säule im Datensatz'
+    if distance_m < 1000:
+        return f'{distance_m:.0f} m'
+    return f'{distance_m / 1000:.2f} km'
+
+
+def build_nearest_station_map(df: pd.DataFrame, id_col: str, lat_col: str, lon_col: str) -> Dict[str, Dict[str, Any]]:
+    cell_size = 0.02
+    stations: List[tuple[str, float, float, int, int]] = []
+    grid: Dict[tuple[int, int], List[tuple[str, float, float]]] = {}
+
+    for _, row in df[[id_col, lat_col, lon_col]].dropna().iterrows():
+        station_id = str(row[id_col])
+        lat = float(row[lat_col])
+        lon = float(row[lon_col])
+        lat_cell = math.floor(lat / cell_size)
+        lon_cell = math.floor(lon / cell_size)
+        station = (station_id, lat, lon, lat_cell, lon_cell)
+        stations.append(station)
+        grid.setdefault((lat_cell, lon_cell), []).append((station_id, lat, lon))
+
+    nearest: Dict[str, Dict[str, Any]] = {}
+    for station_id, lat, lon, lat_cell, lon_cell in stations:
+        best_id: Optional[str] = None
+        best_distance: Optional[float] = None
+        lon_cell_m = max(111_320.0 * math.cos(math.radians(lat)) * cell_size, 1.0)
+        lat_cell_m = 111_320.0 * cell_size
+        max_radius = 200
+
+        for radius in range(max_radius + 1):
+            for d_lat in range(-radius, radius + 1):
+                for d_lon in range(-radius, radius + 1):
+                    if radius and max(abs(d_lat), abs(d_lon)) != radius:
+                        continue
+                    for other_id, other_lat, other_lon in grid.get((lat_cell + d_lat, lon_cell + d_lon), []):
+                        if other_id == station_id:
+                            continue
+                        distance = haversine_distance_m(lat, lon, other_lat, other_lon)
+                        if best_distance is None or distance < best_distance:
+                            best_distance = distance
+                            best_id = other_id
+            if best_distance is not None:
+                next_ring_min_m = (radius + 0.5) * min(lat_cell_m, lon_cell_m)
+                if best_distance <= next_ring_min_m:
+                    break
+
+        nearest[station_id] = {
+            'nearest_station_id': best_id,
+            'distance_m': best_distance,
+        }
+    return nearest
+
 # --- Data Management & State ---
 
 download_state = DownloadState()
@@ -508,6 +573,8 @@ async def main_page(request: Request):
     id_to_open: Optional[str] = None
     is_view_updating = False
     last_bounds: Optional[Dict[str, float]] = None
+    nearest_station_map: Dict[str, Dict[str, Any]] = {}
+    nearest_station_map_csv: Optional[str] = None
 
     id_col = 'Ladeeinrichtungs-ID'
     lat_col = 'Breitengrad'
@@ -518,6 +585,7 @@ async def main_page(request: Request):
     app.storage.user.setdefault('selected_operators', [])
     app.storage.user.setdefault('selected_powers', [])
     app.storage.user.setdefault('selected_marker_types', [])
+    app.storage.user.setdefault('proximity_filter_m', 0)
     available_csvs = get_available_csvs()
     app.storage.user.setdefault('selected_csv', available_csvs[0] if available_csvs else None)
     app.storage.user.setdefault('panel_is_visible', True)
@@ -544,7 +612,7 @@ async def main_page(request: Request):
         return center_out, zoom_out
 
     async def update_view():
-        nonlocal active_markers, marker_render_state, id_to_open, is_view_updating, last_bounds
+        nonlocal active_markers, marker_render_state, id_to_open, is_view_updating, last_bounds, nearest_station_map, nearest_station_map_csv
         if is_view_updating:
             return
         is_view_updating = True
@@ -567,9 +635,11 @@ async def main_page(request: Request):
                 operator_select.options.clear()
                 power_select.options.clear()
                 marker_type_select.value = []
+                proximity_filter_input.value = 0
                 operator_select.update()
                 power_select.update()
                 marker_type_select.update()
+                proximity_filter_input.update()
                 return
 
             bounds_ready = False
@@ -629,6 +699,10 @@ async def main_page(request: Request):
                 power_select.options = unique_powers
                 power_select.update()
 
+            if nearest_station_map_csv != loaded_csv_name:
+                nearest_station_map = await run.io_bound(build_nearest_station_map, df, id_col, lat_col, lon_col)
+                nearest_station_map_csv = loaded_csv_name
+
             df_to_display = df_in_view
             selected_ops = app.storage.user.get('selected_operators', [])
             if selected_ops:
@@ -637,6 +711,20 @@ async def main_page(request: Request):
             selected_powers = app.storage.user.get('selected_powers', [])
             if selected_powers:
                 df_to_display = df_to_display[df_to_display[power_col].isin(selected_powers)]
+
+            try:
+                proximity_filter_m = float(app.storage.user.get('proximity_filter_m') or 0)
+            except Exception:
+                proximity_filter_m = 0
+            if proximity_filter_m > 0:
+                df_to_display = df_to_display[
+                    df_to_display[id_col].astype(str).map(
+                        lambda station_id: (
+                            nearest_station_map.get(station_id, {}).get('distance_m') is not None
+                            and nearest_station_map.get(station_id, {}).get('distance_m') <= proximity_filter_m
+                        )
+                    )
+                ]
 
             candidate_station_ids = df_to_display[id_col].astype(str).tolist()
             public_access_status_map = await run.io_bound(load_public_access_status_map, candidate_station_ids)
@@ -676,6 +764,14 @@ async def main_page(request: Request):
                     betreiber = html.escape(str(row[operator_col]))
                     adresse = html.escape(f"{row.get('Straße', '')} {row.get('Hausnummer', '')}, {row.get('Postleitzahl', '')} {row.get('Ort', '')}")
                     leistung = html.escape(f"{row.get(power_col, 'N/A')} kW")
+                    nearest_info = nearest_station_map.get(lade_id, {})
+                    nearest_distance = nearest_info.get('distance_m')
+                    nearest_station_id = nearest_info.get('nearest_station_id')
+                    nearest_label = html.escape(format_distance_m(nearest_distance))
+                    nearest_id_html = ''
+                    if nearest_station_id:
+                        nearest_id = html.escape(str(nearest_station_id))
+                        nearest_id_html = f' zu ID {nearest_id}'
                     status_key = public_access_status_map.get(lade_id, DEFAULT_PUBLIC_ACCESS_STATUS)
                     if status_key not in PUBLIC_ACCESS_OPTIONS:
                         status_key = DEFAULT_PUBLIC_ACCESS_STATUS
@@ -717,6 +813,7 @@ async def main_page(request: Request):
                             <b>Zugangsstatus:</b> {status_label}<br>
                             <b>AFIR-QR-Check:</b> {afir_qr_check_label}<br>
                             {thg_certificate_html}
+                            <b>Nächste Säule:</b> {nearest_label}{nearest_id_html}<br>
                             <b>Säulen am Standort:</b> {count_at_location}<br>
                             <a href=\"{google_maps_url}\" target=\"_blank\">Route mit Google Maps</a><br>
                             <a href=\"{apple_maps_url}\" target=\"_blank\">Route mit Apple Maps</a><br>
@@ -810,12 +907,15 @@ async def main_page(request: Request):
             app.storage.user['selected_operators'] = []
             app.storage.user['selected_powers'] = []
             app.storage.user['selected_marker_types'] = []
+            app.storage.user['proximity_filter_m'] = 0
             operator_select.value = []
             power_select.value = []
             marker_type_select.value = []
+            proximity_filter_input.value = 0
             operator_select.update()
             power_select.update()
             marker_type_select.update()
+            proximity_filter_input.update()
         new_df, error_message, stats = await run.io_bound(load_data, new_csv)
         if error_message:
             ui.notify(error_message, type='negative')
@@ -940,6 +1040,13 @@ async def main_page(request: Request):
                 with_input=True,
                 on_change=update_view,
             ).props('use-chips clearable').bind_value(app.storage.user, 'selected_marker_types').classes('w-full')
+            proximity_filter_input = ui.number(
+                label='Nur Säulen mit weiterer Säule im Umkreis (m)',
+                min=0,
+                step=50,
+                format='%.0f',
+                on_change=update_view,
+            ).props('clearable').bind_value(app.storage.user, 'proximity_filter_m').classes('w-full')
 
             def get_pbw_operator_candidates() -> List[str]:
                 nonlocal df
