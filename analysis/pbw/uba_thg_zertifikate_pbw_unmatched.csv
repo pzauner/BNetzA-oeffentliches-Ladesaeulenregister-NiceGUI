@@ -1,0 +1,31 @@
+thg_row;jahr_bescheinigung;strasse;hausnummer;plz;ort;grund;best_score;best_lsr
+1;2025;Anton-Huber-Straße;51;73430;Aalen;keine passende Hausnummer im LSR;;
+2;2025;Baetznerstraße;90;75323;Bad Wildbad;Straße nicht sicher gematcht;0.8;Bätznerstr. 90, 75323 Bad Wildbad (1150058)
+4;2025;Kaiserallee;1;76530;Baden-Baden;keine passende Hausnummer im LSR;;
+6;2025;Schloß;4;97980;Bad Mergentheim;keine passende Hausnummer im LSR;;
+7;2025;Flandernstrasse;101a;73732;Esslingen;keine passende Hausnummer im LSR;;
+8;2025;Friedrich-Ebert-Anlage;51C;69117;Heidelberg;keine passende Hausnummer im LSR;;
+9;2025;Humboldtstrasse;3;79098;Freiburg;Straße nicht sicher gematcht;0.552;Bissierstraße 3, 79098 Freiburg (1046840)
+10;2025;Ritterstr.;20;76133;Karlsruhe;keine passende Hausnummer im LSR;;
+15;2025;Bismarckstraße;10;68161;Mannheim;keine passende Hausnummer im LSR;;
+17;2025;Breisacher Str;;79106;;"keine Hausnummer in UBA-Zeile; nicht automatisch gematcht";;
+18;2025;Katharinenstrasse;;79104;Freiburg;"keine Hausnummer in UBA-Zeile; nicht automatisch gematcht";;
+20;2025;Zirkel;2;76131;Karlsruhe;keine passende Hausnummer im LSR;;
+25;2025;Oskar-Schlemmer-Straße;8A;70191;Stuttgart;keine passende Hausnummer im LSR;;
+32;2025;Otto-Sander-Strasse;1;70599;Stuttgart;keine passende Hausnummer im LSR;;
+34;2025;Schlossplatz;12;76131;Karlsruhe;keine passende Hausnummer im LSR;;
+40;2025;Seidenstraße;23;70176;Stuttgart;keine passende Hausnummer im LSR;;
+42;2025;Albert-Einstein-Allee;5;89081;Ulm;Straße nicht sicher gematcht;0.242;Helmholtzstr. 5, 89081 Ulm (1150184)
+46;2024;Engelbergstraße;41;79106;Freiburg;Straße nicht sicher gematcht;0.8;Engelbergerstr. 41, 79106 Freiburg im Breisgau (1062396)
+47;2024;Fritz-Haber-Weg;;76131;Karlsruhe;"keine Hausnummer in UBA-Zeile; nicht automatisch gematcht";;
+49;2024;Rudolf-Plank-Straße;;76131;Karlsruhe;"keine Hausnummer in UBA-Zeile; nicht automatisch gematcht";;
+50;2024;Schloß;4;97980;Bad Mergentheim;keine passende Hausnummer im LSR;;
+55;2024;Kaiserallee;1;76530;Baden-Baden;keine passende Hausnummer im LSR;;
+56;2024;Max-Egon-Straße;18;78166;Donaueschingen;keine passende Hausnummer im LSR;;
+63;2024;Breisacher Straße;;79106;Freiburg im Breisgau;"keine Hausnummer in UBA-Zeile; nicht automatisch gematcht";;
+66;2024;Hubertus-Liebrecht-Straße;35;88400;Biberach an der Riß;keine passende Hausnummer im LSR;;
+67;2024;Katharinenstraße;;79104;Freiburg;"keine Hausnummer in UBA-Zeile; nicht automatisch gematcht";;
+72;2024;Am Schlossplatz;1-3;76131;Karlsruhe;keine passende Hausnummer im LSR;;
+76;2024;Kinzigstraße;8;77652;Offenburg;keine passende Hausnummer im LSR;;
+81;2024;Albert-Einstein-Allee;;89081;Ulm;"keine Hausnummer in UBA-Zeile; nicht automatisch gematcht";;
+90;2024;Seidenstraße;23;70176;Stuttgart;keine passende Hausnummer im LSR;;

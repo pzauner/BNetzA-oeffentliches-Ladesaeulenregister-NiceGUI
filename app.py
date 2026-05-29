@@ -11,7 +11,7 @@ import logging
 import json
 from app.config import DOWNLOAD_DIR, CONTEXT_DIR, BNETZA_PAGE_URL, MAX_MARKERS_IN_VIEW, KARLSRUHE_COORDS, STATION_PAGE_ROUTE
 from app.data import DownloadState, find_csv_download_url, download_csv, get_available_csvs, load_data, get_latest_csv
-from app.storage import sanitize_id, get_station_dir, ensure_station_dir, load_notes_html, save_notes_html, list_station_files, load_meta, save_meta, load_public_access_status_map, load_afir_qr_check_map
+from app.storage import sanitize_id, get_station_dir, ensure_station_dir, load_notes_html, save_notes_html, list_station_files, load_meta, save_meta, load_public_access_status_map, load_afir_qr_check_map, load_thg_certificate_years_map
 import asyncio
 from app.index import load_station_index, save_station_index
 from app.auth import login, AuthMiddleware, load_storage_secret
@@ -43,6 +43,52 @@ REVIEWED_PUBLIC_ACCESS_STATUSES = {
 }
 AFIR_QR_COLOR = '#ff00ff'  # magenta
 DEFAULT_PUBLIC_ACCESS_STATUS = 'ungeprueft'
+THG_CERTIFICATE_MARKER_COLORS: Dict[str, str] = {
+    'eindeutig_oeffentlich': '#00a152',
+    'eindeutig_nicht_oeffentlich': '#ad1457',
+    'ungeprueft': '#6a1b9a',
+}
+MARKER_FILTER_OPTIONS: Dict[str, str] = {
+    'eindeutig_oeffentlich': 'Öffentlich',
+    'uneindeutig': 'Uneindeutig',
+    'eindeutig_nicht_oeffentlich': 'Nicht öffentlich',
+    'ungeprueft': 'Ungeprüft',
+    'thg_eindeutig_oeffentlich': 'Öffentlich + THG-Zertifikat',
+    'thg_eindeutig_nicht_oeffentlich': 'Nicht öffentlich + THG-Zertifikat',
+    'thg_ungeprueft': 'Ungeprüft/uneindeutig + THG-Zertifikat',
+}
+
+
+def get_thg_certificate_marker(status_key: str, years: List[str]) -> tuple[str, str]:
+    if not years:
+        return (
+            PUBLIC_ACCESS_COLORS.get(status_key, PUBLIC_ACCESS_COLORS[DEFAULT_PUBLIC_ACCESS_STATUS]),
+            PUBLIC_ACCESS_OPTIONS.get(status_key, PUBLIC_ACCESS_OPTIONS[DEFAULT_PUBLIC_ACCESS_STATUS]),
+        )
+    if status_key == 'eindeutig_oeffentlich':
+        return (
+            THG_CERTIFICATE_MARKER_COLORS['eindeutig_oeffentlich'],
+            'Eindeutig öffentlich zugänglich + THG-Zertifikat erhalten',
+        )
+    if status_key == 'eindeutig_nicht_oeffentlich':
+        return (
+            THG_CERTIFICATE_MARKER_COLORS['eindeutig_nicht_oeffentlich'],
+            'Eindeutig nicht öffentlich zugänglich + THG-Zertifikat erhalten',
+        )
+    return (
+        THG_CERTIFICATE_MARKER_COLORS['ungeprueft'],
+        'Ungeprüft/uneindeutig + THG-Zertifikat erhalten',
+    )
+
+
+def get_marker_filter_key(status_key: str, years: List[str]) -> str:
+    if not years:
+        return status_key if status_key in PUBLIC_ACCESS_OPTIONS else DEFAULT_PUBLIC_ACCESS_STATUS
+    if status_key == 'eindeutig_oeffentlich':
+        return 'thg_eindeutig_oeffentlich'
+    if status_key == 'eindeutig_nicht_oeffentlich':
+        return 'thg_eindeutig_nicht_oeffentlich'
+    return 'thg_ungeprueft'
 
 # --- Data Management & State ---
 
@@ -239,6 +285,12 @@ async def station_page(request: Request, station_id: str):
         current_public_access = meta.get('public_access_status', DEFAULT_PUBLIC_ACCESS_STATUS)
         if current_public_access not in PUBLIC_ACCESS_OPTIONS:
             current_public_access = DEFAULT_PUBLIC_ACCESS_STATUS
+        thg_certificate_years = meta.get('thg_certificate_years')
+        if not isinstance(thg_certificate_years, list):
+            thg_certificate_years = []
+        thg_certificate_years = sorted({str(year).strip() for year in thg_certificate_years if str(year).strip()})
+        if thg_certificate_years:
+            ui.label(f"THG-Zertifikat erhalten: {', '.join(thg_certificate_years)}").classes('text-purple-800 font-semibold')
 
         if app.storage.user.get('authenticated'):
             async def save_public_access_status(e: Any) -> None:
@@ -465,6 +517,7 @@ async def main_page(request: Request):
 
     app.storage.user.setdefault('selected_operators', [])
     app.storage.user.setdefault('selected_powers', [])
+    app.storage.user.setdefault('selected_marker_types', [])
     available_csvs = get_available_csvs()
     app.storage.user.setdefault('selected_csv', available_csvs[0] if available_csvs else None)
     app.storage.user.setdefault('panel_is_visible', True)
@@ -513,8 +566,10 @@ async def main_page(request: Request):
                 marker_render_state.clear()
                 operator_select.options.clear()
                 power_select.options.clear()
+                marker_type_select.value = []
                 operator_select.update()
                 power_select.update()
+                marker_type_select.update()
                 return
 
             bounds_ready = False
@@ -583,6 +638,24 @@ async def main_page(request: Request):
             if selected_powers:
                 df_to_display = df_to_display[df_to_display[power_col].isin(selected_powers)]
 
+            candidate_station_ids = df_to_display[id_col].astype(str).tolist()
+            public_access_status_map = await run.io_bound(load_public_access_status_map, candidate_station_ids)
+            thg_certificate_years_map = await run.io_bound(load_thg_certificate_years_map, candidate_station_ids)
+            afir_qr_check_map = await run.io_bound(load_afir_qr_check_map, candidate_station_ids)
+
+            selected_marker_types = app.storage.user.get('selected_marker_types', [])
+            if selected_marker_types:
+                selected_marker_types = set(selected_marker_types)
+                visible_ids = []
+                for station_id in candidate_station_ids:
+                    status_key = public_access_status_map.get(station_id, DEFAULT_PUBLIC_ACCESS_STATUS)
+                    if status_key not in PUBLIC_ACCESS_OPTIONS:
+                        status_key = DEFAULT_PUBLIC_ACCESS_STATUS
+                    years = thg_certificate_years_map.get(station_id, [])
+                    if get_marker_filter_key(status_key, years) in selected_marker_types:
+                        visible_ids.append(station_id)
+                df_to_display = df_to_display[df_to_display[id_col].astype(str).isin(visible_ids)]
+
             if len(df_to_display) > MAX_MARKERS_IN_VIEW:
                 ui.notify(f"Anzeigelimit erreicht. Zeige {MAX_MARKERS_IN_VIEW} von {len(df_to_display)}.", type='warning')
                 df_to_display = df_to_display.head(MAX_MARKERS_IN_VIEW)
@@ -592,10 +665,6 @@ async def main_page(request: Request):
             for _, row in df_to_display.iterrows():
                 key = (round(float(row[lat_col]), 6), round(float(row[lon_col]), 6))
                 grouped_rows.setdefault(key, []).append(row)
-
-            visible_station_ids = df_to_display[id_col].astype(str).tolist()
-            public_access_status_map = await run.io_bound(load_public_access_status_map, visible_station_ids)
-            afir_qr_check_map = await run.io_bound(load_afir_qr_check_map, visible_station_ids)
 
             new_marker_specs: Dict[str, tuple[float, float, str, str]] = {}
 
@@ -610,9 +679,16 @@ async def main_page(request: Request):
                     status_key = public_access_status_map.get(lade_id, DEFAULT_PUBLIC_ACCESS_STATUS)
                     if status_key not in PUBLIC_ACCESS_OPTIONS:
                         status_key = DEFAULT_PUBLIC_ACCESS_STATUS
-                    status_label = PUBLIC_ACCESS_OPTIONS[status_key]
+                    thg_certificate_years = thg_certificate_years_map.get(lade_id, [])
+                    marker_color, status_label = get_thg_certificate_marker(status_key, thg_certificate_years)
                     has_afir_qr_check = afir_qr_check_map.get(lade_id, False)
                     afir_qr_check_label = 'Ja' if has_afir_qr_check else 'Nein'
+                    thg_certificate_html = ''
+                    if thg_certificate_years:
+                        thg_years_label = html.escape(', '.join(thg_certificate_years))
+                        thg_certificate_html = f"<b>THG-Zertifikat(e):</b> {thg_years_label}<br>"
+                    elif status_key not in REVIEWED_PUBLIC_ACCESS_STATUSES and has_afir_qr_check:
+                        marker_color = AFIR_QR_COLOR
 
                     if count_at_location > 1:
                         layer = idx // 8
@@ -640,6 +716,7 @@ async def main_page(request: Request):
                             <b>Leistung:</b> {leistung}<br>
                             <b>Zugangsstatus:</b> {status_label}<br>
                             <b>AFIR-QR-Check:</b> {afir_qr_check_label}<br>
+                            {thg_certificate_html}
                             <b>Säulen am Standort:</b> {count_at_location}<br>
                             <a href=\"{google_maps_url}\" target=\"_blank\">Route mit Google Maps</a><br>
                             <a href=\"{apple_maps_url}\" target=\"_blank\">Route mit Apple Maps</a><br>
@@ -647,12 +724,6 @@ async def main_page(request: Request):
                         </div>
                     """
 
-                    if status_key in REVIEWED_PUBLIC_ACCESS_STATUSES:
-                        marker_color = PUBLIC_ACCESS_COLORS[status_key]
-                    elif has_afir_qr_check:
-                        marker_color = AFIR_QR_COLOR
-                    else:
-                        marker_color = PUBLIC_ACCESS_COLORS.get(status_key, PUBLIC_ACCESS_COLORS[DEFAULT_PUBLIC_ACCESS_STATUS])
                     new_marker_specs[lade_id] = (marker_lat, marker_lon, marker_color, popup_html)
 
             current_ids = set(active_markers.keys())
@@ -738,10 +809,13 @@ async def main_page(request: Request):
         if dataset_changed:
             app.storage.user['selected_operators'] = []
             app.storage.user['selected_powers'] = []
+            app.storage.user['selected_marker_types'] = []
             operator_select.value = []
             power_select.value = []
+            marker_type_select.value = []
             operator_select.update()
             power_select.update()
+            marker_type_select.update()
         new_df, error_message, stats = await run.io_bound(load_data, new_csv)
         if error_message:
             ui.notify(error_message, type='negative')
@@ -859,28 +933,60 @@ async def main_page(request: Request):
                     power_select = ui.select(
                         options=[], label='Leistung (kW)', multiple=True, with_input=True,
                     ).props('use-chips').bind_value(app.storage.user, 'selected_powers').classes('w-full')
+            marker_type_select = ui.select(
+                options=MARKER_FILTER_OPTIONS,
+                label='Marker',
+                multiple=True,
+                with_input=True,
+                on_change=update_view,
+            ).props('use-chips clearable').bind_value(app.storage.user, 'selected_marker_types').classes('w-full')
 
-            async def set_parkraumgesellschaft_bw():
+            def get_pbw_operator_candidates() -> List[str]:
                 nonlocal df
                 if df is None:
-                    return
+                    return []
                 operator_series = df[operator_col].astype(str)
                 target_operator = 'Parkraumgesellschaft Baden-Württemberg GmbH'
-                candidates = sorted({
+                return sorted({
                     op for op in operator_series.unique()
                     if op == target_operator
                 })
+
+            async def set_parkraumgesellschaft_bw():
+                candidates = get_pbw_operator_candidates()
                 if not candidates:
-                    ui.notify(f'Betreiber "{target_operator}" im Datensatz nicht gefunden.', type='warning')
+                    ui.notify('PBW im Datensatz nicht gefunden.', type='warning')
                     return
                 app.storage.user['selected_operators'] = candidates
                 operator_select.value = candidates
                 operator_select.update()
+                app.storage.user['selected_marker_types'] = []
+                marker_type_select.value = []
+                marker_type_select.update()
+                await update_view()
+
+            async def set_parkraumgesellschaft_bw_with_thg():
+                candidates = get_pbw_operator_candidates()
+                if not candidates:
+                    ui.notify('PBW im Datensatz nicht gefunden.', type='warning')
+                    return
+                thg_marker_types = [
+                    'thg_eindeutig_oeffentlich',
+                    'thg_eindeutig_nicht_oeffentlich',
+                    'thg_ungeprueft',
+                ]
+                app.storage.user['selected_operators'] = candidates
+                app.storage.user['selected_marker_types'] = thg_marker_types
+                operator_select.value = candidates
+                marker_type_select.value = thg_marker_types
+                operator_select.update()
+                marker_type_select.update()
                 await update_view()
 
             with ui.row().classes('w-full mt-2 gap-2'):
                 ui.button('Karte aktualisieren', on_click=update_view).classes('grow')
-                ui.button('Ein ❤️ für Betrug', on_click=set_parkraumgesellschaft_bw).props('color=negative').classes('grow')
+                ui.button('Ein ❤️ für Betrug', on_click=set_parkraumgesellschaft_bw_with_thg).props('color=negative').classes('grow')
+                ui.button('Nur PBW', on_click=set_parkraumgesellschaft_bw).props('outline').classes('grow')
 
             with ui.column().classes('w-full items-center mt-4') as progress_container:
                 progress_bar = ui.linear_progress(value=0).props('instant-feedback').classes('w-full')

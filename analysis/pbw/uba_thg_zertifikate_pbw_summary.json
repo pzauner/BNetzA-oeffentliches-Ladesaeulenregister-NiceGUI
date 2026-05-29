@@ -1,0 +1,21 @@
+{
+  "uba_rows": 93,
+  "matched_links": 214,
+  "matched_unique_station_ids": 175,
+  "unmatched_rows": 30,
+  "meta_files_updated": 175,
+  "years": [
+    "2023",
+    "2024",
+    "2025"
+  ],
+  "input": "analysis/pbw/uba_thg_zertifikate_pbw.csv",
+  "matches_csv": "analysis/pbw/uba_thg_zertifikate_pbw_matches.csv",
+  "unmatched_csv": "analysis/pbw/uba_thg_zertifikate_pbw_unmatched.csv",
+  "manual_matched_rows": 21,
+  "manual_matched_links": 76,
+  "still_unmatched_rows": 9,
+  "manual_matches_csv": "analysis/pbw/uba_thg_zertifikate_pbw_manual_matches.csv",
+  "still_unmatched_csv": "analysis/pbw/uba_thg_zertifikate_pbw_still_unmatched.csv",
+  "meta_manual_updates_written": 76
+}

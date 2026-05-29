@@ -1,0 +1,215 @@
+thg_row;jahr;adresse_uba;ladeeinrichtungs_id;adresse_lsr;lsr_status;lsr_ladepunkte;score
+3;2025;Gutenbergstraße 17, 76532 Baden-Baden;1061496;Gutenbergstr. 17, 76532 Baden-Baden;In Betrieb;2;0.92
+5;2025;Kernerstraße 39, 75323 Bad Wildbad;1150052;Kernerstr. 39, 75323 Bad Wildbad;In Betrieb;2;0.92
+5;2025;Kernerstraße 39, 75323 Bad Wildbad;1150053;Kernerstr. 39, 75323 Bad Wildbad;In Betrieb;2;0.92
+5;2025;Kernerstraße 39, 75323 Bad Wildbad;1150054;Kernerstr. 39, 75323 Bad Wildbad;In Betrieb;2;0.92
+5;2025;Kernerstraße 39, 75323 Bad Wildbad;1150055;Kernerstr. 39, 75323 Bad Wildbad;In Betrieb;2;0.92
+5;2025;Kernerstraße 39, 75323 Bad Wildbad;1150056;Kernerstr. 39, 75323 Bad Wildbad;In Betrieb;2;0.92
+11;2025;Sandgasse 16, 69117 Heidelberg;1046848;Sandgasse 16, 69117 Heidelberg;In Betrieb;2;1.0
+12;2025;Stefan-Meier-Straße 19/21, 79104 Freiburg;1118318;Stefan-Meier-Str. 19-21, 79104 Freiburg im Breisgau;In Betrieb;2;1.0
+12;2025;Stefan-Meier-Straße 19/21, 79104 Freiburg;1152639;Stefan-Meier-Str. 19-21, 79104 Freiburg im Breisgau;In Betrieb;2;1.0
+13;2025;Thibautstraße 1a, 69115 Heidelberg;1118319;Thibautstr. 1a, 69115 Heidelberg;In Betrieb;2;0.92
+14;2025;Baumeisterstraße 9, 76137 Karlsruhe;1046841;Baumeisterstraße 9, 76137 Karlsruhe;In Betrieb;2;1.0
+16;2025;Bissierstraße 1, 79114 Freiburg im Breisgau;1062397;Bissierstr. 1, 79114 Freiburg im Breisgau;In Betrieb;2;0.92
+19;2025;Luisenstraße 10, 79539 Lörrach;1046838;Luisenstraße 10, 79539 Lörrach;In Betrieb;2;1.0
+21;2025;Alteburgstraße 150, 72762 Reutlingen;1046852;Alteburgstraße 150, 72762 Reutlingen;In Betrieb;4;1.0
+21;2025;Alteburgstraße 150, 72762 Reutlingen;1046853;Alteburgstraße 150, 72762 Reutlingen;In Betrieb;4;1.0
+22;2025;Huberstrasse 2, 70174 Stuttgart;1118114;Huberstr. 2, 70174 Stuttgart;In Betrieb;2;0.92
+22;2025;Huberstrasse 2, 70174 Stuttgart;1118115;Huberstr. 2, 70174 Stuttgart;In Betrieb;2;0.92
+23;2025;Kernerplatz 9 + 10, 70182 Stuttgart;1150064;Kernerplatz 9 - 10, 70182 Stuttgart;In Betrieb;2;1.0
+24;2025;Leonhardpl. 1, 72764 Reutlingen;1046839;Leonhardplatz 1, 72764 Reutlingen;In Betrieb;2;0.92
+26;2025;Schwarzwaldhochstraße 2, 77889 Seebach;1046854;Schwarzwaldhochstraße 2, 77889 Seebach (Ruhestein);In Betrieb;4;1.0
+26;2025;Schwarzwaldhochstraße 2, 77889 Seebach;1046855;Schwarzwaldhochstraße 2, 77889 Seebach (Ruhestein);In Betrieb;4;1.0
+26;2025;Schwarzwaldhochstraße 2, 77889 Seebach;1046856;Schwarzwaldhochstraße 2, 77889 Seebach (Ruhestein);In Betrieb;2;1.0
+27;2025;Schwarzwaldhochstraße 2, 77889 Seebach;1046854;Schwarzwaldhochstraße 2, 77889 Seebach (Ruhestein);In Betrieb;4;1.0
+27;2025;Schwarzwaldhochstraße 2, 77889 Seebach;1046855;Schwarzwaldhochstraße 2, 77889 Seebach (Ruhestein);In Betrieb;4;1.0
+27;2025;Schwarzwaldhochstraße 2, 77889 Seebach;1046856;Schwarzwaldhochstraße 2, 77889 Seebach (Ruhestein);In Betrieb;2;1.0
+28;2025;Brunnenstraße 29, 72074 Tübingen;1150176;Brunnenstr. 29, 72074 Tübingen;In Betrieb;2;0.92
+28;2025;Brunnenstraße 29, 72074 Tübingen;1150177;Brunnenstr. 29, 72074 Tübingen;In Betrieb;2;0.92
+28;2025;Brunnenstraße 29, 72074 Tübingen;1150178;Brunnenstr. 29, 72074 Tübingen;In Betrieb;2;0.92
+28;2025;Brunnenstraße 29, 72074 Tübingen;1150179;Brunnenstr. 29, 72074 Tübingen;In Betrieb;2;0.92
+28;2025;Brunnenstraße 29, 72074 Tübingen;1150180;Brunnenstr. 29, 72074 Tübingen;In Betrieb;2;0.92
+29;2025;Hauffstraße 5, 70190 Stuttgart;1046837;Hauffstraße 5, 70190 Stuttgart;In Betrieb;2;1.0
+30;2025;Helmholtzstraße 5, 89081 Ulm;1150184;Helmholtzstr. 5, 89081 Ulm;In Betrieb;1;0.92
+30;2025;Helmholtzstraße 5, 89081 Ulm;1150186;Helmholtzstr. 5, 89081 Ulm;In Betrieb;1;0.92
+30;2025;Helmholtzstraße 5, 89081 Ulm;1150182;Helmholtzstr. 5, 89081 Ulm;In Betrieb;2;0.92
+31;2025;Klosterhof 14/2, 74214 Schöntal;1150191;Klosterhof 14/2, 74214 Schöntal;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062255;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062256;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062257;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062259;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062261;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062262;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062263;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062264;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062265;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062266;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062267;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062268;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062269;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062270;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062271;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062272;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062273;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062274;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062275;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062276;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062278;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;1;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062280;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062281;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062282;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062283;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062284;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062285;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062286;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062287;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062288;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062289;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062291;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062292;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062293;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062295;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062296;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062297;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062298;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062299;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062300;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062301;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062302;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062303;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062304;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062305;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062306;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+33;2025;Schellingstr. 25B, 70174 Stuttgart;1062908;Schellingstr. 25b, 70174 Stuttgart;In Betrieb;2;1.0
+35;2025;Konrad-Adenauer-Strasse 16, 70173 Stuttgart;1118324;Konrad-Adenauer-Str. 16, 70173 Stuttgart;In Betrieb;2;1.0
+36;2025;Konrad-Adenauer-Strasse 3, 70173 Stuttgart;1046835;Konrad -Adenauer-Str. 3, 70173 Stuttgart;In Betrieb;4;1.0
+36;2025;Konrad-Adenauer-Strasse 3, 70173 Stuttgart;1046836;Konrad -Adenauer-Str. 3, 70173 Stuttgart;In Betrieb;1;1.0
+36;2025;Konrad-Adenauer-Strasse 3, 70173 Stuttgart;1062319;Konrad-Adenauer-Str. 3, 70173 Stuttgart;In Betrieb;2;1.0
+36;2025;Konrad-Adenauer-Strasse 3, 70173 Stuttgart;1062321;Konrad-Adenauer-Str. 3, 70173 Stuttgart;In Betrieb;2;1.0
+36;2025;Konrad-Adenauer-Strasse 3, 70173 Stuttgart;1062322;Konrad-Adenauer-Str. 3, 70173 Stuttgart;In Betrieb;2;1.0
+36;2025;Konrad-Adenauer-Strasse 3, 70173 Stuttgart;1062323;Konrad-Adenauer-Str. 3, 70173 Stuttgart;In Betrieb;2;1.0
+36;2025;Konrad-Adenauer-Strasse 3, 70173 Stuttgart;1062324;Konrad-Adenauer-Str. 3, 70173 Stuttgart;In Betrieb;2;1.0
+37;2025;Konrad-Adenauer-Strasse 32, 70173 Stuttgart;1118326;Konrad-Adenauer-Str. 32, 70173 Stuttgart;In Betrieb;2;1.0
+37;2025;Konrad-Adenauer-Strasse 32, 70173 Stuttgart;1118327;Konrad-Adenauer-Str. 32, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062240;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062241;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062242;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062243;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062244;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062245;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062246;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062247;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062248;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062249;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062250;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062251;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062252;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062253;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062254;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+38;2025;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1046857;Konrad-Adenauer-Straße 10, 70173 Stuttgart;In Betrieb;2;1.0
+39;2025;Kriegsbergstraße 32, 70174 Stuttgart;1061594;Kriegsbergstr. 32, 70174 Stuttgart;In Betrieb;2;0.92
+39;2025;Kriegsbergstraße 32, 70174 Stuttgart;1061595;Kriegsbergstr. 32, 70174 Stuttgart;In Betrieb;2;0.92
+39;2025;Kriegsbergstraße 32, 70174 Stuttgart;1061596;Kriegsbergstr. 32, 70174 Stuttgart;In Betrieb;2;0.92
+39;2025;Kriegsbergstraße 32, 70174 Stuttgart;1061597;Kriegsbergstr. 32, 70174 Stuttgart;In Betrieb;2;0.92
+39;2025;Kriegsbergstraße 32, 70174 Stuttgart;1061598;Kriegsbergstr. 32, 70174 Stuttgart;In Betrieb;2;0.92
+41;2025;Universitätsstraße 10, 78464 Konstanz;1062576;Universitätsstr. 10, 78464 Konstanz;In Betrieb;2;0.92
+41;2025;Universitätsstraße 10, 78464 Konstanz;1062577;Universitätsstr. 10, 78464 Konstanz;In Betrieb;2;0.92
+41;2025;Universitätsstraße 10, 78464 Konstanz;1062578;Universitätsstr. 10, 78464 Konstanz;In Betrieb;2;0.92
+41;2025;Universitätsstraße 10, 78464 Konstanz;1062579;Universitätsstr. 10, 78464 Konstanz;In Betrieb;2;0.92
+41;2025;Universitätsstraße 10, 78464 Konstanz;1062581;Universitätsstr. 10, 78464 Konstanz;In Betrieb;2;0.92
+43;2025;Mühlbachäckerstraße 5, 72072 Tübingen;1062307;Mühlbachäckerstr. 5, 72072 Tübingen;In Betrieb;2;0.92
+44;2025;Schnarrenbergstraße 158, 72076 Tübingen;1118117;Schnarrenbergstr. 158, 72076 Tübingen;In Betrieb;2;0.92
+45;2024;Am Fichtenberg 1, 71083 Herrenberg;1062420;Am Fichtenberg 1, 71083 Herrenberg;In Betrieb;2;1.0
+48;2024;Musbacher Straße 33, 72250 Freudenstadt;1062417;Musbacher Str. 33, 72250 Freudenstadt;In Betrieb;2;1.0
+51;2024;Fridrichstraße 4, 79410 Badenweiler;1046851;Friedrichstraße 4, 79410 Badenweiler;In Betrieb;2;0.968
+52;2024;Gutenbergstraße 17, 76532 Baden-Baden;1061496;Gutenbergstr. 17, 76532 Baden-Baden;In Betrieb;2;0.92
+53;2024;Hasselbacher Straße 4, 77704 Oberkirch;1062492;Hesselbacher Str. 4, 77704 Oberkirch;In Betrieb;2;0.95
+54;2024;Jobstweg 7, 70176 Stuttgart;1062510;Jobstweg 7, 70176 Stuttgart;In Betrieb;2;1.0
+57;2024;Reinhold-Frank-Straße 67, 76133 Karlsruhe;1062479;Reinhold-Frank-Str. 67, 76133 Karlsruhe;In Betrieb;2;1.0
+58;2024;Vogesenstraße 22, 77933 Lahr;1062489;Vogesenstr. 22, 77933 Lahr;In Betrieb;2;0.92
+59;2024;West Hertzstraße 16, 76187 Karlsruhe;1062433;Hertzstr. 16, 76187 Karlsruhe;In Betrieb;2;0.92
+60;2024;Zeller Straße 1-3, 77654 Offenburg;1062493;Zeller Str. 1-3, 77654 Offenburg;In Betrieb;2;1.0
+60;2024;Zeller Straße 1-3, 77654 Offenburg;1062494;Zeller Str. 1-3, 77654 Offenburg;In Betrieb;2;1.0
+61;2024;Bahnhofstraße 62, 73312 Geislingen an der Steige;1062419;Bahnhofstr. 62, 73312 Geislingen an der Steige;In Betrieb;2;0.92
+62;2024;Bissierstraße 1, 79114 Freiburg im Breisgau;1062397;Bissierstr. 1, 79114 Freiburg im Breisgau;In Betrieb;2;0.92
+64;2024;Friedrichstraße 39, 79098 Freiburg;1062401;Friedrichstr. 39, 79098 Freiburg im Breisgau;In Betrieb;2;0.92
+65;2024;Hermann-Herder-Straße 8, 79104 Freiburg im Breisgau;1062398;Hermann-Herder-Str. 8, 79104 Freiburg im Breisgau;In Betrieb;2;1.0
+65;2024;Hermann-Herder-Straße 8, 79104 Freiburg im Breisgau;1062399;Hermann-Herder-Str. 8, 79104 Freiburg im Breisgau;In Betrieb;2;1.0
+68;2024;Schaflandstraße 3_2, 70736 Fellbach;1062395;Schaflandstr. 3-2, 70736 Fellbach;In Betrieb;2;0.92
+69;2024;Weißhoferstraße 47, 75015 Bretten;1062393;Weißhofer Str. 47, 75015 Bretten;In Betrieb;2;0.971
+70;2024;Wolfgang-Brumme- Allee 52, 71034 Böblingen;1062394;Wolfgang-Brumme-Allee 52, 71034 Böblingen;In Betrieb;2;1.0
+71;2024;Alfred-Wachtel-Straße 12, 78462 Konstanz;1062480;Alfred-Wachtel-Str. 12, 78462 Konstanz;In Betrieb;2;1.0
+73;2024;Badstraße 24, 77652 Offenburg;1061589;Badstr. 24, 77652 Offenburg;In Betrieb;2;0.92
+73;2024;Badstraße 24, 77652 Offenburg;1061590;Badstr. 24, 77652 Offenburg;In Betrieb;2;0.92
+73;2024;Badstraße 24, 77652 Offenburg;1061591;Badstr. 24, 77652 Offenburg;In Betrieb;2;0.92
+73;2024;Badstraße 24, 77652 Offenburg;1061592;Badstr. 24, 77652 Offenburg;In Betrieb;2;0.92
+73;2024;Badstraße 24, 77652 Offenburg;1061593;Badstr. 24, 77652 Offenburg;In Betrieb;2;0.92
+73;2024;Badstraße 24, 77652 Offenburg;1062482;Badstr. 24, 77652 Offenburg;In Betrieb;2;0.92
+73;2024;Badstraße 24, 77652 Offenburg;1062484;Badstr. 24, 77652 Offenburg;In Betrieb;2;0.92
+73;2024;Badstraße 24, 77652 Offenburg;1062486;Badstr. 24, 77652 Offenburg;In Betrieb;2;0.92
+73;2024;Badstraße 24, 77652 Offenburg;1062487;Badstr. 24, 77652 Offenburg;In Betrieb;2;0.92
+73;2024;Badstraße 24, 77652 Offenburg;1062488;Badstr. 24, 77652 Offenburg;In Betrieb;2;0.92
+74;2024;Gotthard-Franz-Straße 9, 76131 Karlsruhe;1062428;Gotthard-Franz-Str. 9, 76131 Karlsruhe;In Betrieb;2;1.0
+74;2024;Gotthard-Franz-Straße 9, 76131 Karlsruhe;1062429;Gotthard-Franz-Str. 9, 76131 Karlsruhe;In Betrieb;2;1.0
+75;2024;Hoffstraße 10, 76133 Karlsruhe;1062434;Hoffstr. 10, 76133 Karlsruhe;In Betrieb;2;0.92
+77;2024;Rheingutstraße 47, 78462 Konstanz;1062481;Rheingutstr. 47, 78462 Konstanz;In Betrieb;2;0.92
+78;2024;Schlossplatz 16, 76131 Karlsruhe;1061574;Schlossplatz 16, 76131 Karlsruhe;In Betrieb;2;1.0
+78;2024;Schlossplatz 16, 76131 Karlsruhe;1061575;Schlossplatz 16, 76131 Karlsruhe;In Betrieb;2;1.0
+78;2024;Schlossplatz 16, 76131 Karlsruhe;1061576;Schlossplatz 16, 76131 Karlsruhe;In Betrieb;2;1.0
+78;2024;Schlossplatz 16, 76131 Karlsruhe;1061577;Schlossplatz 16, 76131 Karlsruhe;In Betrieb;2;1.0
+78;2024;Schlossplatz 16, 76131 Karlsruhe;1061578;Schlossplatz 16, 76131 Karlsruhe;In Betrieb;2;1.0
+78;2024;Schlossplatz 16, 76131 Karlsruhe;1061579;Schlossplatz 16, 76131 Karlsruhe;In Betrieb;2;1.0
+78;2024;Schlossplatz 16, 76131 Karlsruhe;1061580;Schlossplatz 16, 76131 Karlsruhe;In Betrieb;2;1.0
+78;2024;Schlossplatz 16, 76131 Karlsruhe;1061581;Schlossplatz 16, 76131 Karlsruhe;In Betrieb;2;1.0
+78;2024;Schlossplatz 16, 76131 Karlsruhe;1061582;Schlossplatz 16, 76131 Karlsruhe;In Betrieb;2;1.0
+79;2024;Universitätsstraße 10, 78464 Konstanz;1062576;Universitätsstr. 10, 78464 Konstanz;In Betrieb;2;0.92
+79;2024;Universitätsstraße 10, 78464 Konstanz;1062577;Universitätsstr. 10, 78464 Konstanz;In Betrieb;2;0.92
+79;2024;Universitätsstraße 10, 78464 Konstanz;1062578;Universitätsstr. 10, 78464 Konstanz;In Betrieb;2;0.92
+79;2024;Universitätsstraße 10, 78464 Konstanz;1062579;Universitätsstr. 10, 78464 Konstanz;In Betrieb;2;0.92
+79;2024;Universitätsstraße 10, 78464 Konstanz;1062581;Universitätsstr. 10, 78464 Konstanz;In Betrieb;2;0.92
+80;2024;Weißenburger Straße 3, 76187 Karlsruhe;1062423;Weißenburger Str. 3, 76187 Karlsruhe;In Betrieb;2;1.0
+80;2024;Weißenburger Straße 3, 76187 Karlsruhe;1062425;Weißenburger Str. 3, 76187 Karlsruhe;In Betrieb;2;1.0
+82;2024;Gestütshof 1, 72532 Gomadingen;1062910;Gestütshof Marbach 1, 72532 Gomadingen;In Betrieb;2;0.92
+82;2024;Gestütshof 1, 72532 Gomadingen;1062911;Gestütshof Marbach 1, 72532 Gomadingen;In Betrieb;2;0.92
+82;2024;Gestütshof 1, 72532 Gomadingen;1077369;Gestütshof Marbach 1, 72532 Gomadingen;In Betrieb;2;0.92
+82;2024;Gestütshof 1, 72532 Gomadingen;1077370;Gestütshof Marbach 1, 72532 Gomadingen;In Betrieb;2;0.92
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062240;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062241;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062242;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062243;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062244;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062245;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062246;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062247;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062248;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062249;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062250;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062251;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062252;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062253;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1062254;Konrad-Adenauer-Str. 10, 70173 Stuttgart;In Betrieb;2;1.0
+83;2024;Konrad-Adenauer-Straße 10, 70173 Stuttgart;1046857;Konrad-Adenauer-Straße 10, 70173 Stuttgart;In Betrieb;2;1.0
+84;2024;Konrad-Adenauer-Straße 3, 70173 Stuttgart;1046835;Konrad -Adenauer-Str. 3, 70173 Stuttgart;In Betrieb;4;1.0
+84;2024;Konrad-Adenauer-Straße 3, 70173 Stuttgart;1046836;Konrad -Adenauer-Str. 3, 70173 Stuttgart;In Betrieb;1;1.0
+84;2024;Konrad-Adenauer-Straße 3, 70173 Stuttgart;1062319;Konrad-Adenauer-Str. 3, 70173 Stuttgart;In Betrieb;2;1.0
+84;2024;Konrad-Adenauer-Straße 3, 70173 Stuttgart;1062321;Konrad-Adenauer-Str. 3, 70173 Stuttgart;In Betrieb;2;1.0
+84;2024;Konrad-Adenauer-Straße 3, 70173 Stuttgart;1062322;Konrad-Adenauer-Str. 3, 70173 Stuttgart;In Betrieb;2;1.0
+84;2024;Konrad-Adenauer-Straße 3, 70173 Stuttgart;1062323;Konrad-Adenauer-Str. 3, 70173 Stuttgart;In Betrieb;2;1.0
+84;2024;Konrad-Adenauer-Straße 3, 70173 Stuttgart;1062324;Konrad-Adenauer-Str. 3, 70173 Stuttgart;In Betrieb;2;1.0
+85;2024;Konrad-Adenauer-Straße 30, 70173 Stuttgart;1062388;Konrad-Adenauer-Str. 30, 70173 Stuttgart;In Betrieb;2;1.0
+86;2024;Kriegsbergstraße 32, 70174 Stuttgart;1061594;Kriegsbergstr. 32, 70174 Stuttgart;In Betrieb;2;0.92
+86;2024;Kriegsbergstraße 32, 70174 Stuttgart;1061595;Kriegsbergstr. 32, 70174 Stuttgart;In Betrieb;2;0.92
+86;2024;Kriegsbergstraße 32, 70174 Stuttgart;1061596;Kriegsbergstr. 32, 70174 Stuttgart;In Betrieb;2;0.92
+86;2024;Kriegsbergstraße 32, 70174 Stuttgart;1061597;Kriegsbergstr. 32, 70174 Stuttgart;In Betrieb;2;0.92
+86;2024;Kriegsbergstraße 32, 70174 Stuttgart;1061598;Kriegsbergstr. 32, 70174 Stuttgart;In Betrieb;2;0.92
+87;2024;Rollwagstraße 16, 74072 Heilbronn;1062520;Rollwagstr. 16, 74072 Heilbronn;In Betrieb;2;0.92
+87;2024;Rollwagstraße 16, 74072 Heilbronn;1062521;Rollwagstr. 16, 74072 Heilbronn;In Betrieb;2;0.92
+87;2024;Rollwagstraße 16, 74072 Heilbronn;1062523;Rollwagstr. 16, 74072 Heilbronn;In Betrieb;2;0.92
+87;2024;Rollwagstraße 16, 74072 Heilbronn;1062526;Rollwagstr. 16, 74072 Heilbronn;In Betrieb;2;0.92
+88;2024;Schellingstraße 25b, 70174 Stuttgart;1046864;Schellingstraße 25B, 70174 Stuttgart;In Betrieb;3;1.0
+89;2024;Schnarrenbergstraße 1, 72076 Tübingen;1062513;Schnarrenbergstr. 1, 72076 Tübingen;In Betrieb;2;0.92
+89;2024;Schnarrenbergstraße 1, 72076 Tübingen;1062515;Schnarrenbergstr. 1, 72076 Tübingen;In Betrieb;2;0.92
+91;2024;Mühlbachäckerstraße 5, 72072 Tübingen;1062307;Mühlbachäckerstr. 5, 72072 Tübingen;In Betrieb;2;0.92
+92;2024;Wilhelmstraße 56, 72074 Tübingen;1062512;Wilhelmstr. 56, 72074 Tübingen;In Betrieb;2;0.92
+93;2023;Heilbronner Str. 43, 70191 Stuttgart;1062528;Heilbronner Str. 43, 70191 Stuttgart;In Betrieb;1;1.0
+93;2023;Heilbronner Str. 43, 70191 Stuttgart;1062530;Heilbronner Str. 43, 70191 Stuttgart;In Betrieb;1;1.0

@@ -99,3 +99,23 @@ def load_afir_qr_check_map(station_ids: List[str]) -> Dict[str, bool]:
         except Exception:
             continue
     return afir_map
+
+
+def load_thg_certificate_years_map(station_ids: List[str]) -> Dict[str, List[str]]:
+    years_map: Dict[str, List[str]] = {}
+    for station_id in station_ids:
+        safe_id = sanitize_id(station_id)
+        meta_path = os.path.join(CONTEXT_DIR, safe_id, 'meta.json')
+        if not os.path.isfile(meta_path):
+            continue
+        try:
+            with open(meta_path, 'r', encoding='utf-8') as f:
+                meta = json.load(f)
+            years = meta.get('thg_certificate_years')
+            if isinstance(years, list):
+                clean_years = sorted({str(year).strip() for year in years if str(year).strip()})
+                if clean_years:
+                    years_map[station_id] = clean_years
+        except Exception:
+            continue
+    return years_map
