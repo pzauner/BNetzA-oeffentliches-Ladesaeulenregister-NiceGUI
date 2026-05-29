@@ -48,6 +48,11 @@ THG_CERTIFICATE_MARKER_COLORS: Dict[str, str] = {
     'eindeutig_nicht_oeffentlich': '#ad1457',
     'ungeprueft': '#6a1b9a',
 }
+PROXIMITY_FILTER_OPTIONS: Dict[str, str] = {
+    'with_neighbor': 'Mit weiterer Säule im Umkreis',
+    'without_neighbor': 'Ohne weitere Säule im Umkreis',
+}
+
 MARKER_FILTER_OPTIONS: Dict[str, str] = {
     'eindeutig_oeffentlich': 'Öffentlich',
     'uneindeutig': 'Uneindeutig',
@@ -585,6 +590,7 @@ async def main_page(request: Request):
     app.storage.user.setdefault('selected_operators', [])
     app.storage.user.setdefault('selected_powers', [])
     app.storage.user.setdefault('selected_marker_types', [])
+    app.storage.user.setdefault('proximity_filter_mode', 'with_neighbor')
     app.storage.user.setdefault('proximity_filter_m', 0)
     available_csvs = get_available_csvs()
     app.storage.user.setdefault('selected_csv', available_csvs[0] if available_csvs else None)
@@ -635,10 +641,12 @@ async def main_page(request: Request):
                 operator_select.options.clear()
                 power_select.options.clear()
                 marker_type_select.value = []
+                proximity_filter_mode_select.value = 'with_neighbor'
                 proximity_filter_input.value = 0
                 operator_select.update()
                 power_select.update()
                 marker_type_select.update()
+                proximity_filter_mode_select.update()
                 proximity_filter_input.update()
                 return
 
@@ -716,14 +724,17 @@ async def main_page(request: Request):
                 proximity_filter_m = float(app.storage.user.get('proximity_filter_m') or 0)
             except Exception:
                 proximity_filter_m = 0
+            proximity_filter_mode = app.storage.user.get('proximity_filter_mode') or 'with_neighbor'
             if proximity_filter_m > 0:
+                def matches_proximity_filter(station_id: str) -> bool:
+                    distance_m = nearest_station_map.get(station_id, {}).get('distance_m')
+                    has_neighbor_in_radius = distance_m is not None and distance_m <= proximity_filter_m
+                    if proximity_filter_mode == 'without_neighbor':
+                        return not has_neighbor_in_radius
+                    return has_neighbor_in_radius
+
                 df_to_display = df_to_display[
-                    df_to_display[id_col].astype(str).map(
-                        lambda station_id: (
-                            nearest_station_map.get(station_id, {}).get('distance_m') is not None
-                            and nearest_station_map.get(station_id, {}).get('distance_m') <= proximity_filter_m
-                        )
-                    )
+                    df_to_display[id_col].astype(str).map(matches_proximity_filter)
                 ]
 
             candidate_station_ids = df_to_display[id_col].astype(str).tolist()
@@ -907,14 +918,17 @@ async def main_page(request: Request):
             app.storage.user['selected_operators'] = []
             app.storage.user['selected_powers'] = []
             app.storage.user['selected_marker_types'] = []
+            app.storage.user['proximity_filter_mode'] = 'with_neighbor'
             app.storage.user['proximity_filter_m'] = 0
             operator_select.value = []
             power_select.value = []
             marker_type_select.value = []
+            proximity_filter_mode_select.value = 'with_neighbor'
             proximity_filter_input.value = 0
             operator_select.update()
             power_select.update()
             marker_type_select.update()
+            proximity_filter_mode_select.update()
             proximity_filter_input.update()
         new_df, error_message, stats = await run.io_bound(load_data, new_csv)
         if error_message:
@@ -1040,13 +1054,21 @@ async def main_page(request: Request):
                 with_input=True,
                 on_change=update_view,
             ).props('use-chips clearable').bind_value(app.storage.user, 'selected_marker_types').classes('w-full')
-            proximity_filter_input = ui.number(
-                label='Nur Säulen mit weiterer Säule im Umkreis (m)',
-                min=0,
-                step=50,
-                format='%.0f',
-                on_change=update_view,
-            ).props('clearable').bind_value(app.storage.user, 'proximity_filter_m').classes('w-full')
+            with ui.row().classes('w-full no-wrap'):
+                with ui.column().classes('w-1/2'):
+                    proximity_filter_mode_select = ui.select(
+                        options=PROXIMITY_FILTER_OPTIONS,
+                        label='Umkreisfilter',
+                        on_change=update_view,
+                    ).bind_value(app.storage.user, 'proximity_filter_mode').classes('w-full')
+                with ui.column().classes('w-1/2'):
+                    proximity_filter_input = ui.number(
+                        label='Umkreis (m)',
+                        min=0,
+                        step=50,
+                        format='%.0f',
+                        on_change=update_view,
+                    ).props('clearable').bind_value(app.storage.user, 'proximity_filter_m').classes('w-full')
 
             def get_pbw_operator_candidates() -> List[str]:
                 nonlocal df
